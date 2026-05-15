@@ -1,0 +1,148 @@
+.lm-wrapper {
+  margin-top: 28px;
+  background: #1a1f2e;
+  border: 1px solid #2a3047;
+  border-radius: 12px;
+  padding: 20px 24px;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.lm-heading {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lm-count {
+  background: #3b4fd8;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-left: auto;
+}
+
+.lm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lm-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #242b3d;
+  border: 1px solid #2e3650;
+  border-radius: 8px;
+  padding: 12px 16px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.lm-item:hover {
+  background: #2a3350;
+  border-color: #4c5fde;
+}
+
+.lm-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.lm-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lm-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #cbd5e1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lm-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lm-type {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: #334155;
+  color: #94a3b8;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.lm-size {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.lm-download-btn {
+  flex-shrink: 0;
+  background: #3b4fd8;
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.lm-download-btn:hover {
+  background: #4f63f0;
+  transform: translateY(-1px);
+}
+
+.lm-download-btn:active {
+  transform: translateY(0);
+}
+
+.lm-empty,
+.lm-error {
+  font-size: 0.88rem;
+  color: #64748b;
+  margin: 0;
+  padding: 8px 0;
+}
+
+.lm-error {
+  color: #f87171;
+}
+
+.lm-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lm-skeleton-row {
+  height: 52px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #242b3d 25%, #2d364d 50%, #242b3d 75%);
+  background-size: 200% 100%;
+  animation: lm-shimmer 1.4s infinite;
+}
+
+@keyframes lm-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
