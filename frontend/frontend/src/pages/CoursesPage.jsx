@@ -1,8 +1,9 @@
 
 // export default CoursesPage;
-import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState, useContext } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
+import { AuthContext } from "../context/AuthContext";
 import "../styles/CoursesPage.css";
 
 function CoursesPage() {
@@ -10,10 +11,20 @@ function CoursesPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { token, role } = useContext(AuthContext);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categoryParam = searchParams.get("category");
+  const searchParam = searchParams.get("search");
 
   useEffect(() => {
     fetchCourses();
   }, []);
+
+  useEffect(() => {
+    if (searchParam) {
+      setSearch(searchParam);
+    }
+  }, [searchParam]);
 
   const fetchCourses = async () => {
     try {
@@ -26,9 +37,14 @@ function CoursesPage() {
     }
   };
 
-  const filtered = courses.filter((c) =>
-    c.title.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = courses.filter((c) => {
+    const matchesCategory = categoryParam
+      ? c.category && c.category.toLowerCase() === categoryParam.toLowerCase()
+      : true;
+    const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase()) ||
+                          c.description.toLowerCase().includes(search.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="courses-page">
@@ -40,10 +56,15 @@ function CoursesPage() {
         </div>
         <div className="courses-navbar-links">
           <Link to="/">Home</Link>
-          <Link to="/dashboard">My Learning</Link>
-          <button className="courses-navbar-btn" onClick={() => navigate("/dashboard")}>
-            Dashboard
-          </button>
+          {token ? (
+            <button className="courses-navbar-btn" onClick={() => navigate("/dashboard")}>
+              {role === "student" ? "My Learning" : "Dashboard"}
+            </button>
+          ) : (
+            <button className="courses-navbar-btn" onClick={() => navigate("/login")}>
+              Login
+            </button>
+          )}
         </div>
       </nav>
 
@@ -64,6 +85,40 @@ function CoursesPage() {
 
       {/* GRID */}
       <div className="courses-body">
+        {categoryParam && (
+          <div className="category-filter-badge" style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            background: "#eff6ff",
+            border: "1px solid #bfdbfe",
+            color: "#0056d2",
+            padding: "8px 16px",
+            borderRadius: "20px",
+            fontSize: "14px",
+            fontWeight: "600",
+            marginBottom: "20px"
+          }}>
+            Showing Category: {categoryParam}
+            <button 
+              onClick={() => {
+                searchParams.delete("category");
+                setSearchParams(searchParams);
+              }}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#0056d2",
+                fontWeight: "800",
+                cursor: "pointer",
+                padding: "0 4px",
+                fontSize: "14px"
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <p className="courses-count">{filtered.length} courses available</p>
 
         {loading ? (
