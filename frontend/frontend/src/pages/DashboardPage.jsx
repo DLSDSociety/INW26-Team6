@@ -38,6 +38,12 @@ export default function DashboardPage() {
     ? [...inProgressList].sort((a, b) => b.progress_percent - a.progress_percent)[0] 
     : enrollments.length > 0 ? enrollments[0] : null;
 
+  const getThumbnailUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    return `http://127.0.0.1:8000${url}`;
+  };
+
   return (
     <>
       <style>{CSS}</style>
@@ -158,7 +164,7 @@ export default function DashboardPage() {
                     </div>
                     {topCourse.course_thumbnail ? (
                       <div className="s-cw-image">
-                        <img src={`http://127.0.0.1:8000${topCourse.course_thumbnail}`} alt="Course Cover" />
+                        <img src={getThumbnailUrl(topCourse.course_thumbnail)} alt="Course Cover" />
                       </div>
                     ) : (
                       <div className="s-cw-image-placeholder">📚</div>
@@ -176,7 +182,7 @@ export default function DashboardPage() {
                     <div key={e.id} className="s-course-card" onClick={() => navigate(`/courses/${e.course}`)}>
                       <div className="s-course-thumb">
                         {e.course_thumbnail ? (
-                          <img src={`http://127.0.0.1:8000${e.course_thumbnail}`} alt={e.course_title} />
+                          <img src={getThumbnailUrl(e.course_thumbnail)} alt={e.course_title} />
                         ) : (
                           <div className="s-course-thumb-placeholder">📚</div>
                         )}
