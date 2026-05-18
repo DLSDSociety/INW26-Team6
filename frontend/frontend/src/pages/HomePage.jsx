@@ -275,27 +275,27 @@ export default function HomePage() {
 
               <div className="gla-footer-col">
                 <h4>Learn</h4>
-                <a href="#">Browse Courses</a>
-                <a href="#">My Dashboard</a>
-                <a href="#">Take a Quiz</a>
-                <a href="#">Track Progress</a>
+                <Link to="/courses">Browse Courses</Link>
+                <Link to="/dashboard">My Dashboard</Link>
+                <Link to="/quizzes">Take a Quiz</Link>
+                <Link to="/dashboard">Track Progress</Link>
               </div>
 
               <div className="gla-footer-col">
                 <h4>Platform</h4>
-                <a href="#">About Us</a>
-                <a href="#">Become an Instructor</a>
-                <a href="#">Join for Free</a>
-                <a href="#">Log In</a>
+                <Link to="/">About Us</Link>
+                <Link to="/register">Become an Instructor</Link>
+                <Link to="/register">Join for Free</Link>
+                <Link to="/login">Log In</Link>
               </div>
 
               <div className="gla-footer-col">
                 <h4>Topics</h4>
-                <a href="#">Python</a>
-                <a href="#">Java</a>
-                <a href="#">Database</a>
-                <a href="#">Artificial Intelligence</a>
-                <a href="#">Finance</a>
+                <Link to="/courses?search=Python">Python</Link>
+                <Link to="/courses?search=Java">Java</Link>
+                <Link to="/courses?search=Database">Database</Link>
+                <Link to="/courses?search=AI">Artificial Intelligence</Link>
+                <Link to="/courses?search=Finance">Finance</Link>
               </div>
 
             </div>

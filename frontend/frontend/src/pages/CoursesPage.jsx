@@ -9,6 +9,7 @@ function CoursesPage() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [loading, setLoading] = useState(true);
+  const [showDropdown, setShowDropdown] = useState(false);
   const navigate = useNavigate();
   const { token, role } = useContext(AuthContext);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -36,6 +37,22 @@ function CoursesPage() {
       setSearch(searchParam);
     }
   }, [searchParam]);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest(".cp-search-wrap")) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("click", handleOutsideClick);
+    return () => document.removeEventListener("click", handleOutsideClick);
+  }, []);
+
+  // Filtered list of courses specifically for the quick search dropdown
+  const dropdownCourses = search.trim()
+    ? courses.filter(c => c.title.toLowerCase().includes(search.toLowerCase()) || 
+                          c.description.toLowerCase().includes(search.toLowerCase())).slice(0, 5)
+    : courses.slice(0, 4);
 
   const fetchCourses = async () => {
     try {
@@ -123,9 +140,50 @@ function CoursesPage() {
               placeholder="What do you want to learn today?"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onFocus={() => setShowDropdown(true)}
             />
             {search && (
               <button className="cp-clear-search-btn" onClick={() => setSearch("")}>✕</button>
+            )}
+
+            {/* Custom Autocomplete Dropdown */}
+            {showDropdown && (
+              <div className="cp-search-dropdown">
+                <div className="cp-search-dropdown-header">
+                  {search.trim() ? "Matching Courses" : "Featured Courses"}
+                </div>
+                <div className="cp-search-dropdown-list">
+                  {dropdownCourses.length > 0 ? (
+                    dropdownCourses.map((c) => (
+                      <div
+                        key={c.id}
+                        className="cp-search-dropdown-item"
+                        onClick={() => {
+                          setShowDropdown(false);
+                          navigate(`/courses/${c.id}`);
+                        }}
+                      >
+                        <div className="cp-sdi-thumb">
+                          {c.thumbnail ? (
+                            <img src={c.thumbnail} alt={c.title} />
+                          ) : (
+                            <span>📚</span>
+                          )}
+                        </div>
+                        <div className="cp-sdi-info">
+                          <span className="cp-sdi-category">{c.category || "Course"}</span>
+                          <span className="cp-sdi-title">{c.title}</span>
+                        </div>
+                        <div className="cp-sdi-arrow">→</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="cp-search-dropdown-empty">
+                      No courses found matching "{search}"
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -134,23 +192,34 @@ function CoursesPage() {
       {/* MAIN CONTAINER */}
       <div className="cp-body">
         
-        {/* CATEGORY FAST-FILTER CONTAINER */}
-        <section className="cp-category-scroll-section">
-          <h2 className="cp-section-subtitle">Browse by Category</h2>
-          <div className="cp-category-scroll-container">
-            {categories.map((cat) => {
-              const isActive = categoryParam?.toLowerCase() === cat.name.toLowerCase();
-              return (
-                <button
-                  key={cat.name}
-                  className={`cp-category-pill-card ${isActive ? "active" : ""}`}
-                  onClick={() => handleCategoryClick(cat.name)}
-                >
-                  <span className="cp-cat-pill-icon">{cat.icon}</span>
-                  <span className="cp-cat-pill-name">{cat.name}</span>
-                </button>
-              );
-            })}
+        {/* CATEGORY DROP-DOWN FILTER */}
+        <section className="cp-category-filter-section">
+          <div className="cp-category-dropdown-wrapper">
+            <h2 className="cp-section-subtitle" style={{ marginBottom: "4px" }}>Browse by Category</h2>
+            <div className="cp-category-select-custom-wrap">
+              <select
+                id="category-select"
+                value={categoryParam || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) {
+                    searchParams.set("category", val);
+                  } else {
+                    searchParams.delete("category");
+                  }
+                  setSearchParams(searchParams);
+                }}
+                className="cp-category-dropdown-select"
+              >
+                <option value="">📁 All Categories (Show All)</option>
+                {categories.map((cat) => (
+                  <option key={cat.name} value={cat.name}>
+                    {cat.icon} {cat.name}
+                  </option>
+                ))}
+              </select>
+              <span className="cp-category-select-arrow">▼</span>
+            </div>
           </div>
         </section>
 
