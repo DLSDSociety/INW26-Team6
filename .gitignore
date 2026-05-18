@@ -1,5 +1,41 @@
+# ── Python / Django ─────────────────────────────────────────────
 venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.Python
 db.sqlite3
+
+# ── Secrets & Environment ────────────────────────────────────────
 .env
+.env.local
+.env.*.local
+*.env
+
+# ── Django Media (user-uploaded files) ──────────────────────────
+media/
+
+# ── Django Static (collected in production) ─────────────────────
+staticfiles/
+
+# ── Node / Vite / React ─────────────────────────────────────────
+node_modules/
+frontend/frontend/dist/
+frontend/frontend/.env
+frontend/frontend/.env.local
+
+# ── Logs ────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS & Editor clutter ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.swp

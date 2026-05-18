@@ -1,5 +1,3 @@
-
-// export default CoursesPage;
 import { useEffect, useState, useContext } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
@@ -9,12 +7,25 @@ import "../styles/CoursesPage.css";
 function CoursesPage() {
   const [courses, setCourses] = useState([]);
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { token, role } = useContext(AuthContext);
   const [searchParams, setSearchParams] = useSearchParams();
+  
   const categoryParam = searchParams.get("category");
   const searchParam = searchParams.get("search");
+
+  const categories = [
+    { name: "IT & Software", icon: "💻" },
+    { name: "Data Science", icon: "📊" },
+    { name: "Artificial Intelligence", icon: "🤖" },
+    { name: "Digital Marketing", icon: "📈" },
+    { name: "Cloud Computing", icon: "☁️" },
+    { name: "Cybersecurity", icon: "🔒" },
+    { name: "Design", icon: "🎨" },
+    { name: "Business", icon: "💼" }
+  ];
 
   useEffect(() => {
     fetchCourses();
@@ -37,6 +48,23 @@ function CoursesPage() {
     }
   };
 
+  const handleCategoryClick = (catName) => {
+    if (categoryParam === catName) {
+      searchParams.delete("category");
+    } else {
+      searchParams.set("category", catName);
+    }
+    setSearchParams(searchParams);
+  };
+
+  const handleClearFilters = () => {
+    searchParams.delete("category");
+    searchParams.delete("search");
+    setSearchParams(searchParams);
+    setSearch("");
+  };
+
+  // Filtering Logic
   const filtered = courses.filter((c) => {
     const matchesCategory = categoryParam
       ? c.category && c.category.toLowerCase() === categoryParam.toLowerCase()
@@ -46,117 +74,166 @@ function CoursesPage() {
     return matchesCategory && matchesSearch;
   });
 
+  // Sorting Logic
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === "alphabetical") {
+      return a.title.localeCompare(b.title);
+    } else if (sortBy === "alphabetical-desc") {
+      return b.title.localeCompare(a.title);
+    } else {
+      return b.id - a.id;
+    }
+  });
+
   return (
-    <div className="courses-page">
+    <div className="cp-page">
 
       {/* NAVBAR */}
-      <nav className="courses-navbar">
-        <div className="courses-navbar-logo" onClick={() => navigate("/")}>
-          Learning Hub
+      <nav className="cp-navbar">
+        <div className="cp-navbar-logo" onClick={() => navigate("/")}>
+          <span className="cp-logo-spark">⚡</span> Learning Hub
         </div>
-        <div className="courses-navbar-links">
-          <Link to="/">Home</Link>
+        <div className="cp-navbar-links">
+          <Link to="/" className="cp-nav-link">Home</Link>
+          <Link to="/quizzes" className="cp-nav-link">Quizzes</Link>
           {token ? (
-            <button className="courses-navbar-btn" onClick={() => navigate("/dashboard")}>
+            <button className="cp-navbar-btn" onClick={() => navigate("/dashboard")}>
               {role === "student" ? "My Learning" : "Dashboard"}
             </button>
           ) : (
-            <button className="courses-navbar-btn" onClick={() => navigate("/login")}>
+            <button className="cp-navbar-btn" onClick={() => navigate("/login")}>
               Login
             </button>
           )}
         </div>
       </nav>
 
-      {/* HEADER */}
-      <div className="courses-header">
-        <h1>Explore All Courses</h1>
-        <p>Learn new skills from expert instructors</p>
-        <div className="courses-search-wrap">
-          <input
-            type="text"
-            placeholder="Search courses..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <button>Search</button>
+      {/* HERO HEADER */}
+      <div className="cp-hero">
+        <div className="cp-hero-overlay-grid"></div>
+        <div className="cp-hero-content">
+          <span className="cp-hero-badge">🌍 Join 100,000+ Students</span>
+          <h1>Master In-Demand Skills</h1>
+          <p>Explore professional expert-led courses across multiple high-income career tracks — 100% Free.</p>
+          
+          <div className="cp-search-wrap">
+            <span className="cp-search-icon">🔍</span>
+            <input
+              type="text"
+              placeholder="What do you want to learn today?"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button className="cp-clear-search-btn" onClick={() => setSearch("")}>✕</button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* GRID */}
-      <div className="courses-body">
-        {categoryParam && (
-          <div className="category-filter-badge" style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            background: "#eff6ff",
-            border: "1px solid #bfdbfe",
-            color: "#0056d2",
-            padding: "8px 16px",
-            borderRadius: "20px",
-            fontSize: "14px",
-            fontWeight: "600",
-            marginBottom: "20px"
-          }}>
-            Showing Category: {categoryParam}
-            <button 
-              onClick={() => {
-                searchParams.delete("category");
-                setSearchParams(searchParams);
-              }}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#0056d2",
-                fontWeight: "800",
-                cursor: "pointer",
-                padding: "0 4px",
-                fontSize: "14px"
-              }}
-            >
-              ✕
-            </button>
+      {/* MAIN CONTAINER */}
+      <div className="cp-body">
+        
+        {/* CATEGORY FAST-FILTER CONTAINER */}
+        <section className="cp-category-scroll-section">
+          <h2 className="cp-section-subtitle">Browse by Category</h2>
+          <div className="cp-category-scroll-container">
+            {categories.map((cat) => {
+              const isActive = categoryParam?.toLowerCase() === cat.name.toLowerCase();
+              return (
+                <button
+                  key={cat.name}
+                  className={`cp-category-pill-card ${isActive ? "active" : ""}`}
+                  onClick={() => handleCategoryClick(cat.name)}
+                >
+                  <span className="cp-cat-pill-icon">{cat.icon}</span>
+                  <span className="cp-cat-pill-name">{cat.name}</span>
+                </button>
+              );
+            })}
           </div>
-        )}
-        <p className="courses-count">{filtered.length} courses available</p>
+        </section>
 
+        {/* CONTROLS HEADER */}
+        <div className="cp-controls-header">
+          <div>
+            <p className="cp-count">
+              Found <strong>{sorted.length}</strong> premium courses
+            </p>
+            {(categoryParam || search) && (
+              <button className="cp-reset-filters-btn" onClick={handleClearFilters}>
+                Clear Active Filters ✕
+              </button>
+            )}
+          </div>
+
+          <div className="cp-controls-right">
+            <div className="cp-sort-wrapper">
+              <label htmlFor="sort-select">Sort by:</label>
+              <select
+                id="sort-select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="newest">Newest First</option>
+                <option value="alphabetical">Title: A to Z</option>
+                <option value="alphabetical-desc">Title: Z to A</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* COURSES LISTINGS */}
         {loading ? (
-          <p style={{ color: "#777", textAlign: "center" }}>Loading...</p>
-        ) : filtered.length === 0 ? (
-          <div className="courses-empty">
-            <p>No courses found for "{search}"</p>
-            <button className="courses-navbar-btn" onClick={() => setSearch("")}>
-              Clear Search
+          <div className="cp-loading-state">
+            <div className="cp-spinner"></div>
+            <p>Gathering courses database...</p>
+          </div>
+        ) : sorted.length === 0 ? (
+          <div className="cp-empty">
+            <div className="cp-empty-icon">📂</div>
+            <h3>No courses fit your criteria</h3>
+            <p>Try refining your search terms or choosing a different category path.</p>
+            <button className="cp-navbar-btn" onClick={handleClearFilters}>
+              Reset Filters
             </button>
           </div>
         ) : (
-          <div className="courses-grid">
-            {filtered.map((course) => (
+          <div className="cp-grid">
+            {sorted.map((course) => (
               <div
                 key={course.id}
-                className="course-card"
+                className="cp-card"
                 onClick={() => navigate(`/courses/${course.id}`)}
               >
-                {course.thumbnail ? (
-                  <img
-                    src={course.thumbnail}
-                    alt={course.title}
-                    className="course-card-thumb"
-                  />
-                ) : (
-                  <div className="course-card-thumb-placeholder">📚</div>
-                )}
+                <div className="cp-card-thumb-container">
+                  {course.thumbnail ? (
+                    <img
+                      src={course.thumbnail}
+                      alt={course.title}
+                      className="cp-card-thumb"
+                    />
+                  ) : (
+                    <div className="cp-card-thumb-placeholder">🎓</div>
+                  )}
+                  <span className="cp-card-badge-floating">{course.category}</span>
+                </div>
 
-                <div className="course-card-body">
-                  <div className="course-card-category">{course.category}</div>
-                  <h3 className="course-card-title">{course.title}</h3>
-                  <p className="course-card-desc">{course.description}</p>
-                  <div className="course-card-footer">
-                    <div className="course-card-stars">
-                      {[1,2,3,4,5].map((s) => <span key={s}>★</span>)}
+                <div className="cp-card-body">
+                  <h3 className="cp-card-title" title={course.title}>{course.title}</h3>
+                  <p className="cp-card-desc">{course.description}</p>
+                  
+                  <div className="cp-card-metrics-row">
+                    <div className="cp-rating-wrap">
+                      <span className="cp-star-icon">★</span>
+                      <span className="cp-rating-score">4.9</span>
+                      <span className="cp-rating-count">(1,240 reviews)</span>
                     </div>
-                    <span className="course-card-tag">Free</span>
+                  </div>
+
+                  <div className="cp-card-footer">
+                    <span className="cp-card-level">All Levels</span>
+                    <span className="cp-card-tag-badge">Free Access</span>
                   </div>
                 </div>
               </div>

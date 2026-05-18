@@ -115,7 +115,6 @@ function RegisterPage() {
                 <select name="role" value={formData.role} onChange={handleChange}>
                   <option value="student">Student</option>
                   <option value="instructor">Instructor</option>
-                  <option value="admin">Admin</option>
                 </select>
               </div>
               <button type="submit" className="auth-submit-btn" disabled={loading}>

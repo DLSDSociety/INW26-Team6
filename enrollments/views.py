@@ -16,6 +16,10 @@ class EnrollView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        # Only students can enroll — instructors/admins manage courses, not take them
+        if request.user.role != 'student':
+            return Response({'error': 'Only students can enroll in courses'}, status=403)
+
         course_id = request.data.get('course_id')
         if not course_id:
             return Response({'error': 'course_id is required'}, status=400)
@@ -99,13 +103,14 @@ class AllEnrollmentsView(APIView):
         enrollments = (
             Enrollment.objects
             .select_related('student', 'course')
+            .prefetch_related('course__lessons', 'progress')
             .filter(student__role='student')
             .order_by('-enrolled_at')
         )
 
         result = []
         for enroll in enrollments:
-            total_lessons   = enroll.course.lessons.count()
+            total_lessons   = enroll.course.lessons.all().count()
             completed_count = enroll.progress.filter(is_completed=True).count()
             progress_pct    = (
                 round((completed_count / total_lessons) * 100)

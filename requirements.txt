@@ -1,0 +1,20 @@
+# Django & Core
+django==6.0.5
+djangorestframework==3.17.1
+djangorestframework-simplejwt==5.5.1
+django-cors-headers==4.9.0
+django-extensions==4.1
+
+# Database & Utilities
+sqlparse==0.5.5
+asgiref==3.11.1
+tzdata==2026.2
+
+# Authentication
+PyJWT==2.12.1
+
+# Image handling (for ImageField / profile pictures / thumbnails)
+Pillow==12.2.0
+
+# Environment variable loading
+python-dotenv==1.0.0

@@ -15,7 +15,11 @@ from .permissions import IsAdmin
 
 class RegisterView(APIView):
     def post(self, request):
-        serializer = UserSerializer(data=request.data)
+        data = request.data.copy()
+        # Prevent privilege escalation — admins can only be created via Django admin panel
+        if data.get('role') == 'admin':
+            data['role'] = 'student'
+        serializer = UserSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "User created"}, status=201)
@@ -50,11 +54,15 @@ class ProfileView(APIView):
 
     def get(self, request):
         user = request.user
+        profile_pic_url = None
+        if user.profile_picture:
+            profile_pic_url = request.build_absolute_uri(user.profile_picture.url)
         return Response({
             "username": user.username,
             "email": user.email,
             "role": user.role,
-            "bio": user.bio,
+            "bio": user.bio or "",
+            "profile_picture": profile_pic_url,
         })
 
 
@@ -64,9 +72,21 @@ class UpdateProfileView(APIView):
     def patch(self, request):
         user = request.user
 
-        user.username = request.data.get("username", user.username)
+        new_username = request.data.get("username", user.username)
+
+        # Check username uniqueness before saving to avoid IntegrityError crash
+        if new_username != user.username:
+            if CustomUser.objects.filter(username=new_username).exists():
+                return Response({"error": "This username is already taken."}, status=400)
+
+        user.username = new_username
         user.email    = request.data.get("email",    user.email)
         user.bio      = request.data.get("bio",      user.bio)
+
+        # Allow updating password if provided
+        new_password = request.data.get("password")
+        if new_password:
+            user.set_password(new_password)
 
         if "profile_picture" in request.FILES:
             user.profile_picture = request.FILES["profile_picture"]

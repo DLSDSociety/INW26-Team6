@@ -401,7 +401,17 @@ const CSS = `
   }
   .gla-search-input-wrap:focus-within { border-color: #0056d2; box-shadow: 0 4px 25px rgba(0,86,210,0.15); }
   .gla-search-icon { font-size: 20px; margin: 0 16px; opacity: 0.5; }
-  .gla-search-input { flex: 1; border: none; outline: none; font-size: 16px; color: #111827; padding: 12px 0; }
+  .gla-search-input { 
+    flex: 1; 
+    border: none !important; 
+    outline: none !important; 
+    font-size: 16px; 
+    color: #111827 !important; 
+    background-color: transparent !important; 
+    padding: 12px 0; 
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
   .gla-search-input::placeholder { color: #9ca3af; }
   .gla-search-btn { background: #0056d2; color: #fff; border: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
   .gla-search-btn:hover { background: #0044a8; }
