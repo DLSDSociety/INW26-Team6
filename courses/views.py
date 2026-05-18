@@ -3,7 +3,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Count
+from django.db.models import Count, Q
 from .models import Course, Lesson, CourseMaterial
 from .serializers import CourseSerializer, LessonSerializer, CourseMaterialSerializer
 from users.permissions import IsInstructor, IsAdmin
@@ -17,7 +17,7 @@ class CourseListCreateView(generics.ListCreateAPIView):
     serializer_class = CourseSerializer
 
     def get_queryset(self):
-        return Course.objects.annotate(enrolled_count=Count('enrollments'))
+        return Course.objects.annotate(enrolled_count=Count('enrollments', filter=Q(enrollments__student__role='student')))
 
     def get_permissions(self):
         if self.request.method == 'POST':
@@ -122,7 +122,7 @@ class MyCoursesInstructorView(APIView):
         courses = (
             Course.objects
             .filter(instructor=request.user)
-            .annotate(enrolled_count=Count('enrollments'))
+            .annotate(enrolled_count=Count('enrollments', filter=Q(enrollments__student__role='student')))
             .prefetch_related('lessons')
         )
         serializer = CourseSerializer(courses, many=True, context={'request': request})
@@ -152,12 +152,12 @@ class CourseStudentsView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        enrollments   = Enrollment.objects.filter(course=course).select_related('student')
+        enrollments   = Enrollment.objects.filter(course=course, student__role='student').select_related('student')
         total_lessons = course.lessons.count()
         result        = []
 
         for enroll in enrollments:
-            completed = enroll.progress_set.filter(is_completed=True).count()
+            completed = enroll.progress.filter(is_completed=True).count()
             pct       = round((completed / total_lessons) * 100) if total_lessons > 0 else 0
             result.append({
                 "id":               enroll.id,

@@ -8,7 +8,7 @@ const SUBJECTS = [
     id: "db",
     name: "Database Management",
     icon: "🗄️",
-    color: "#6c63ff",
+    color: "#4f46e5",
     questions: [
       { q: "What does SQL stand for?", options: ["Structured Query Language", "Simple Query Language", "Standard Query Logic", "Sequential Query Language"], answer: 0 },
       { q: "Which SQL clause is used to filter records?", options: ["ORDER BY", "GROUP BY", "WHERE", "HAVING"], answer: 2 },
@@ -26,7 +26,7 @@ const SUBJECTS = [
     id: "ai",
     name: "Artificial Intelligence",
     icon: "🤖",
-    color: "#f39c12",
+    color: "#f59e0b",
     questions: [
       { q: "What is the Turing Test used to evaluate?", options: ["Speed of a computer", "A machine's ability to exhibit intelligent behavior", "Memory capacity", "Network latency"], answer: 1 },
       { q: "Which algorithm is commonly used for classification problems?", options: ["Linear Regression", "K-Means", "Decision Tree", "PCA"], answer: 2 },
@@ -44,7 +44,7 @@ const SUBJECTS = [
     id: "java",
     name: "Java Programming",
     icon: "☕",
-    color: "#e74c3c",
+    color: "#ef4444",
     questions: [
       { q: "Which keyword is used to create a class in Java?", options: ["struct", "class", "object", "define"], answer: 1 },
       { q: "Java is a ___ language.", options: ["Procedural", "Functional", "Object-Oriented", "Markup"], answer: 2 },
@@ -62,7 +62,7 @@ const SUBJECTS = [
     id: "python",
     name: "Python Programming",
     icon: "🐍",
-    color: "#27ae60",
+    color: "#10b981",
     questions: [
       { q: "Which keyword is used to define a function in Python?", options: ["func", "function", "def", "define"], answer: 2 },
       { q: "What is the output of print(type([]))?", options: ["<class 'tuple'>", "<class 'list'>", "<class 'dict'>", "<class 'set'>"], answer: 1 },
@@ -77,163 +77,6 @@ const SUBJECTS = [
     ],
   },
 ];
-
-// ─── STYLES ───────────────────────────────────────────────────────────────────
-const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
-  .quiz-page {
-    font-family: 'Inter', system-ui, sans-serif;
-    min-height: 100vh;
-    background: linear-gradient(135deg, #0f0c29 0%, #1a1a3e 50%, #24243e 100%);
-    color: #e4e8f0;
-  }
-
-  /* Navbar */
-  .quiz-navbar {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 16px 48px;
-    background: rgba(255,255,255,0.04);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    backdrop-filter: blur(12px);
-    position: sticky; top: 0; z-index: 100;
-  }
-  .quiz-brand { font-size: 22px; font-weight: 800; color: #6c63ff; cursor: pointer; }
-  .quiz-nav-links { display: flex; gap: 12px; align-items: center; }
-  .quiz-nav-btn {
-    background: transparent; color: #aaa; border: 1px solid rgba(255,255,255,0.1);
-    padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: 500;
-    cursor: pointer; transition: all 0.2s;
-  }
-  .quiz-nav-btn:hover { border-color: #6c63ff; color: #fff; }
-
-  /* Header */
-  .quiz-header {
-    text-align: center; padding: 48px 24px 32px;
-  }
-  .quiz-header h1 {
-    font-size: 36px; font-weight: 800; margin-bottom: 8px;
-    background: linear-gradient(135deg, #6c63ff, #a855f7);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  }
-  .quiz-header p { color: #888; font-size: 16px; }
-
-  /* Subject Grid */
-  .quiz-subjects-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 20px; max-width: 1100px; margin: 0 auto; padding: 0 48px 60px;
-  }
-  .quiz-subject-card {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px; padding: 32px 24px;
-    text-align: center; cursor: pointer;
-    transition: all 0.25s ease;
-    position: relative; overflow: hidden;
-  }
-  .quiz-subject-card::before {
-    content: ''; position: absolute; inset: 0;
-    background: radial-gradient(circle at 50% 0%, var(--card-color) 0%, transparent 70%);
-    opacity: 0.08; transition: opacity 0.25s;
-  }
-  .quiz-subject-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
-    border-color: rgba(255,255,255,0.15);
-  }
-  .quiz-subject-card:hover::before { opacity: 0.15; }
-  .quiz-subject-icon { font-size: 48px; margin-bottom: 16px; }
-  .quiz-subject-name { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 6px; }
-  .quiz-subject-info { font-size: 13px; color: #888; }
-  .quiz-subject-badge {
-    display: inline-block; margin-top: 16px;
-    padding: 6px 16px; border-radius: 20px;
-    font-size: 12px; font-weight: 600;
-    background: rgba(108,99,255,0.15); color: #6c63ff;
-  }
-
-  /* Quiz Active View */
-  .quiz-active {
-    max-width: 700px; margin: 0 auto; padding: 0 24px 60px;
-  }
-  .quiz-progress-bar {
-    background: rgba(255,255,255,0.06);
-    border-radius: 8px; height: 6px; margin-bottom: 32px; overflow: hidden;
-  }
-  .quiz-progress-fill {
-    height: 100%; border-radius: 8px;
-    background: linear-gradient(90deg, #6c63ff, #a855f7);
-    transition: width 0.4s ease;
-  }
-  .quiz-question-card {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px; padding: 32px;
-    animation: qFadeIn 0.3s ease;
-  }
-  @keyframes qFadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-  .quiz-q-num { font-size: 12px; font-weight: 700; color: #6c63ff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-  .quiz-q-text { font-size: 20px; font-weight: 700; color: #fff; line-height: 1.5; margin-bottom: 24px; }
-  .quiz-options { display: flex; flex-direction: column; gap: 10px; }
-  .quiz-option {
-    display: flex; align-items: center; gap: 14px;
-    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 12px; padding: 14px 18px;
-    cursor: pointer; transition: all 0.2s; font-size: 15px; color: #ccc;
-  }
-  .quiz-option:hover:not(.disabled) { background: rgba(108,99,255,0.1); border-color: rgba(108,99,255,0.3); color: #fff; }
-  .quiz-option.selected { background: rgba(108,99,255,0.15); border-color: #6c63ff; color: #fff; }
-  .quiz-option.correct { background: rgba(39,174,96,0.15); border-color: #27ae60; color: #27ae60; }
-  .quiz-option.wrong { background: rgba(231,76,60,0.15); border-color: #e74c3c; color: #e74c3c; }
-  .quiz-option.disabled { cursor: default; opacity: 0.7; }
-  .quiz-option-letter {
-    width: 32px; height: 32px; border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 13px; flex-shrink: 0;
-    background: rgba(255,255,255,0.06); color: #aaa;
-  }
-  .quiz-option.selected .quiz-option-letter { background: #6c63ff; color: #fff; }
-  .quiz-option.correct .quiz-option-letter { background: #27ae60; color: #fff; }
-  .quiz-option.wrong .quiz-option-letter { background: #e74c3c; color: #fff; }
-  .quiz-actions {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-top: 24px; gap: 12px;
-  }
-  .quiz-btn {
-    padding: 10px 24px; border-radius: 10px; border: none;
-    font-size: 14px; font-weight: 600; cursor: pointer;
-    transition: all 0.2s; font-family: 'Inter', sans-serif;
-  }
-  .quiz-btn-primary { background: #6c63ff; color: #fff; }
-  .quiz-btn-primary:hover { background: #5a52e0; }
-  .quiz-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
-  .quiz-btn-ghost { background: transparent; border: 1px solid rgba(255,255,255,0.1); color: #aaa; }
-  .quiz-btn-ghost:hover { border-color: #6c63ff; color: #fff; }
-
-  /* Result */
-  .quiz-result {
-    text-align: center;
-    animation: qFadeIn 0.4s ease;
-  }
-  .quiz-result-icon { font-size: 64px; margin-bottom: 16px; }
-  .quiz-result h2 { font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 8px; }
-  .quiz-result p { color: #888; font-size: 15px; margin-bottom: 8px; }
-  .quiz-score-big {
-    font-size: 56px; font-weight: 800; margin: 20px 0;
-    background: linear-gradient(135deg, #6c63ff, #a855f7);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  }
-  .quiz-result-actions { display: flex; gap: 12px; justify-content: center; margin-top: 24px; }
-
-  @media (max-width: 768px) {
-    .quiz-navbar { padding: 14px 20px; }
-    .quiz-header h1 { font-size: 26px; }
-    .quiz-subjects-grid { padding: 0 20px 40px; grid-template-columns: 1fr; }
-    .quiz-active { padding: 0 16px 40px; }
-    .quiz-question-card { padding: 20px; }
-    .quiz-q-text { font-size: 17px; }
-  }
-`;
 
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
 export default function QuizPage() {
@@ -287,121 +130,348 @@ export default function QuizPage() {
   return (
     <>
       <style>{CSS}</style>
-      <div className="quiz-page">
-
+      <div className="q-wrapper">
+        
         {/* Navbar */}
-        <nav className="quiz-navbar">
-          <div className="quiz-brand" onClick={() => navigate("/")}>Learning Hub</div>
-          <div className="quiz-nav-links">
-            <button className="quiz-nav-btn" onClick={() => navigate("/")}>Home</button>
-            <button className="quiz-nav-btn" onClick={() => navigate("/dashboard")}>Dashboard</button>
+        <nav className="q-nav">
+          <div className="q-brand" onClick={() => navigate("/")}>
+            <span className="q-logo-icon">🎯</span> Learning Hub
+          </div>
+          <div className="q-nav-links">
+            <button className="q-btn-ghost" onClick={() => navigate("/")}>Home</button>
+            <button className="q-btn-ghost" onClick={() => navigate("/dashboard")}>Dashboard</button>
+            <div className="q-avatar">{(username || "U")[0].toUpperCase()}</div>
           </div>
         </nav>
 
-        {/* ── Subject Selection ── */}
-        {!activeSubject && (
-          <>
-            <div className="quiz-header">
-              <h1>🧠 Quiz Arena</h1>
-              <p>Test your knowledge across popular IT subjects</p>
-            </div>
-            <div className="quiz-subjects-grid">
-              {SUBJECTS.map((s) => (
-                <div
-                  key={s.id}
-                  className="quiz-subject-card"
-                  style={{ "--card-color": s.color }}
-                  onClick={() => startQuiz(s)}
-                >
-                  <div className="quiz-subject-icon">{s.icon}</div>
-                  <div className="quiz-subject-name">{s.name}</div>
-                  <div className="quiz-subject-info">{s.questions.length} questions</div>
-                  <div className="quiz-subject-badge">Start Quiz →</div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+        <main className="q-main">
+          {/* ── Subject Selection ── */}
+          {!activeSubject && (
+            <div className="q-fade-in">
+              <header className="q-header">
+                <div className="q-badge">Knowledge Check</div>
+                <h1>Select a Quiz Topic</h1>
+                <p>Challenge yourself and solidify your understanding of core IT subjects.</p>
+              </header>
 
-        {/* ── Active Quiz ── */}
-        {activeSubject && !finished && (
-          <div className="quiz-active">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "24px 0 12px" }}>
-              <button className="quiz-btn quiz-btn-ghost" onClick={goBackToSubjects}>← Back</button>
-              <span style={{ fontSize: "14px", color: "#888" }}>
-                {activeSubject.icon} {activeSubject.name}
-              </span>
-              <span style={{ fontSize: "14px", color: "#6c63ff", fontWeight: 600 }}>
-                {currentQ + 1} / {activeSubject.questions.length}
-              </span>
-            </div>
-
-            <div className="quiz-progress-bar">
-              <div className="quiz-progress-fill" style={{ width: `${progressPct}%` }} />
-            </div>
-
-            <div className="quiz-question-card" key={currentQ}>
-              <div className="quiz-q-num">Question {currentQ + 1}</div>
-              <div className="quiz-q-text">{question.q}</div>
-
-              <div className="quiz-options">
-                {question.options.map((opt, i) => {
-                  let cls = "quiz-option";
-                  if (answered) cls += " disabled";
-                  if (answered && i === question.answer) cls += " correct";
-                  else if (answered && i === selectedOption && i !== question.answer) cls += " wrong";
-                  else if (!answered && i === selectedOption) cls += " selected";
-                  return (
-                    <div key={i} className={cls} onClick={() => handleSelect(i)}>
-                      <span className="quiz-option-letter">{letters[i]}</span>
-                      <span>{opt}</span>
+              <div className="q-grid">
+                {SUBJECTS.map((s) => (
+                  <div
+                    key={s.id}
+                    className="q-subject-card"
+                    style={{ "--theme-color": s.color, "--theme-bg": s.color + "15" }}
+                    onClick={() => startQuiz(s)}
+                  >
+                    <div className="q-subject-icon-wrap">
+                      <span className="q-subject-icon">{s.icon}</span>
                     </div>
-                  );
-                })}
+                    <h3 className="q-subject-title">{s.name}</h3>
+                    <p className="q-subject-desc">{s.questions.length} questions to test your skills</p>
+                    <div className="q-subject-footer">
+                      <span className="q-start-link">Start Challenge →</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Active Quiz ── */}
+          {activeSubject && !finished && (
+            <div className="q-active q-fade-in">
+              <div className="q-active-header">
+                <button className="q-back-btn" onClick={goBackToSubjects}>
+                  <span className="q-back-icon">←</span> Exit Quiz
+                </button>
+                <div className="q-active-subject" style={{ color: activeSubject.color }}>
+                  {activeSubject.icon} <span style={{ marginLeft: 6 }}>{activeSubject.name}</span>
+                </div>
               </div>
 
-              <div className="quiz-actions">
-                <span style={{ fontSize: "14px", color: "#888" }}>
-                  Score: {score} / {currentQ + (answered ? 1 : 0)}
-                </span>
+              <div className="q-progress-container">
+                <div className="q-progress-stats">
+                  <span className="q-progress-text">Question {currentQ + 1} of {activeSubject.questions.length}</span>
+                  <span className="q-progress-pct">{progressPct}%</span>
+                </div>
+                <div className="q-progress-bar">
+                  <div className="q-progress-fill" style={{ width: `${progressPct}%`, backgroundColor: activeSubject.color }} />
+                </div>
+              </div>
+
+              <div className="q-question-card">
+                <h2 className="q-question-text">{question.q}</h2>
+
+                <div className="q-options-list">
+                  {question.options.map((opt, i) => {
+                    let cls = "q-option";
+                    if (answered) cls += " disabled";
+                    if (answered && i === question.answer) cls += " correct";
+                    else if (answered && i === selectedOption && i !== question.answer) cls += " wrong";
+                    else if (!answered && i === selectedOption) cls += " selected";
+                    
+                    return (
+                      <div key={i} className={cls} onClick={() => handleSelect(i)}>
+                        <div className="q-option-letter">{letters[i]}</div>
+                        <div className="q-option-text">{opt}</div>
+                        {answered && i === question.answer && <div className="q-option-icon">✓</div>}
+                        {answered && i === selectedOption && i !== question.answer && <div className="q-option-icon">✕</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="q-actions-bar">
+                <div className="q-score-live">Current Score: <strong>{score}</strong></div>
                 <button
-                  className="quiz-btn quiz-btn-primary"
+                  className="q-btn-primary"
                   disabled={!answered}
                   onClick={handleNext}
+                  style={{ backgroundColor: answered ? activeSubject.color : "#cbd5e1" }}
                 >
-                  {currentQ < activeSubject.questions.length - 1 ? "Next Question →" : "See Results"}
+                  {currentQ < activeSubject.questions.length - 1 ? "Next Question" : "Finish Quiz"} →
                 </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ── Results ── */}
-        {activeSubject && finished && (
-          <div className="quiz-active">
-            <div className="quiz-question-card quiz-result">
-              <div className="quiz-result-icon">
-                {score >= activeSubject.questions.length * 0.8 ? "🏆" : score >= activeSubject.questions.length * 0.5 ? "🎯" : "📚"}
-              </div>
-              <h2>
-                {score >= activeSubject.questions.length * 0.8
-                  ? "Excellent Work!"
-                  : score >= activeSubject.questions.length * 0.5
-                  ? "Good Job!"
-                  : "Keep Practicing!"}
-              </h2>
-              <p>{activeSubject.icon} {activeSubject.name}</p>
-              <div className="quiz-score-big">{score}/{activeSubject.questions.length}</div>
-              <p>You scored {Math.round((score / activeSubject.questions.length) * 100)}%</p>
-              <div className="quiz-result-actions">
-                <button className="quiz-btn quiz-btn-ghost" onClick={goBackToSubjects}>All Quizzes</button>
-                <button className="quiz-btn quiz-btn-primary" onClick={() => startQuiz(activeSubject)}>Retry Quiz</button>
+          {/* ── Results ── */}
+          {activeSubject && finished && (
+            <div className="q-result q-fade-in">
+              <div className="q-result-card">
+                <div className="q-result-icon">
+                  {score >= activeSubject.questions.length * 0.8 ? "🏆" : score >= activeSubject.questions.length * 0.5 ? "⭐" : "📚"}
+                </div>
+                <div className="q-badge" style={{ margin: "0 auto 16px" }}>Quiz Complete</div>
+                <h2 className="q-result-title">
+                  {score >= activeSubject.questions.length * 0.8
+                    ? "Outstanding Performance!"
+                    : score >= activeSubject.questions.length * 0.5
+                    ? "Good Effort!"
+                    : "Room for Improvement"}
+                </h2>
+                <p className="q-result-desc">You completed the <strong>{activeSubject.name}</strong> quiz.</p>
+                
+                <div className="q-score-circle" style={{ borderColor: activeSubject.color }}>
+                  <div className="q-score-number" style={{ color: activeSubject.color }}>{score}</div>
+                  <div className="q-score-total">out of {activeSubject.questions.length}</div>
+                </div>
+                
+                <p className="q-result-pct">Accuracy: {Math.round((score / activeSubject.questions.length) * 100)}%</p>
+                
+                <div className="q-result-actions">
+                  <button className="q-btn-ghost" onClick={goBackToSubjects} style={{ border: "1px solid #e2e8f0" }}>
+                    ← Browse Quizzes
+                  </button>
+                  <button className="q-btn-primary" onClick={() => startQuiz(activeSubject)} style={{ backgroundColor: activeSubject.color }}>
+                    Try Again ↻
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
+          )}
+        </main>
       </div>
     </>
   );
 }
+
+// ─── STYLES ───────────────────────────────────────────────────────────────────
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  .q-wrapper {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    min-height: 100vh;
+    background-color: #f8fafc;
+    color: #0f172a;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .q-fade-in { animation: qFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+  @keyframes qFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Navbar */
+  .q-nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 48px;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .q-brand { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 800; color: #0f172a; cursor: pointer; letter-spacing: -0.5px; }
+  .q-logo-icon { font-size: 24px; }
+  .q-nav-links { display: flex; gap: 16px; align-items: center; }
+  .q-btn-ghost {
+    background: transparent; color: #64748b; border: none;
+    padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; font-family: inherit;
+  }
+  .q-btn-ghost:hover { background-color: #f1f5f9; color: #0f172a; }
+  .q-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+
+  /* Main Container */
+  .q-main { flex: 1; padding: 60px 24px; display: flex; flex-direction: column; align-items: center; }
+
+  /* Header */
+  .q-header { text-align: center; margin-bottom: 48px; max-width: 600px; }
+  .q-badge {
+    display: inline-block; padding: 6px 14px; border-radius: 20px;
+    background-color: #e0e7ff; color: #4f46e5;
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+  .q-header h1 { font-size: 40px; font-weight: 800; color: #0f172a; letter-spacing: -1px; margin-bottom: 16px; line-height: 1.1; }
+  .q-header p { font-size: 16px; color: #64748b; line-height: 1.6; }
+
+  /* Subject Grid */
+  .q-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px; width: 100%; max-width: 1000px;
+  }
+  .q-subject-card {
+    background-color: #ffffff; border: 1px solid #e2e8f0;
+    border-radius: 20px; padding: 32px;
+    cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
+  }
+  .q-subject-card:hover { transform: translateY(-6px); box-shadow: 0 20px 40px -12px rgba(0,0,0,0.08); border-color: var(--theme-color); }
+  .q-subject-card::before {
+    content: ''; position: absolute; top: 0; right: 0; width: 120px; height: 120px;
+    background: radial-gradient(circle at top right, var(--theme-bg), transparent 70%);
+    border-radius: 0 20px 0 100%; pointer-events: none;
+  }
+  .q-subject-icon-wrap {
+    width: 64px; height: 64px; border-radius: 16px;
+    background-color: var(--theme-bg); display: flex; align-items: center; justify-content: center;
+    margin-bottom: 24px; transition: transform 0.3s;
+  }
+  .q-subject-card:hover .q-subject-icon-wrap { transform: scale(1.05) rotate(-5deg); }
+  .q-subject-icon { font-size: 32px; }
+  .q-subject-title { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 8px; letter-spacing: -0.3px; }
+  .q-subject-desc { font-size: 14px; color: #64748b; flex: 1; }
+  .q-subject-footer { margin-top: 24px; padding-top: 20px; border-top: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
+  .q-start-link { font-size: 14px; font-weight: 700; color: var(--theme-color); transition: padding 0.2s; }
+  .q-subject-card:hover .q-start-link { padding-left: 4px; }
+
+  /* Active Quiz View */
+  .q-active { width: 100%; max-width: 720px; margin: 0 auto; }
+  
+  .q-active-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+  .q-back-btn {
+    background: #ffffff; border: 1px solid #e2e8f0; color: #475569;
+    padding: 8px 16px; border-radius: 12px; font-size: 14px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; font-family: inherit;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  .q-back-btn:hover { background: #f8fafc; color: #0f172a; transform: translateX(-2px); }
+  .q-active-subject { font-size: 15px; font-weight: 700; display: flex; align-items: center; background: #ffffff; padding: 6px 16px; border-radius: 20px; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+  .q-progress-container { margin-bottom: 32px; }
+  .q-progress-stats { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 12px; }
+  .q-progress-pct { color: #0f172a; }
+  .q-progress-bar { background-color: #e2e8f0; border-radius: 8px; height: 8px; overflow: hidden; }
+  .q-progress-fill { height: 100%; border-radius: 8px; transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+
+  .q-question-card {
+    background-color: #ffffff; border: 1px solid #e2e8f0;
+    border-radius: 24px; padding: 40px;
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
+    margin-bottom: 24px;
+  }
+  .q-question-text { font-size: 24px; font-weight: 800; color: #0f172a; line-height: 1.4; margin-bottom: 32px; letter-spacing: -0.5px; }
+
+  .q-options-list { display: flex; flex-direction: column; gap: 12px; }
+  .q-option {
+    display: flex; align-items: center; padding: 16px 20px;
+    background-color: #ffffff; border: 2px solid #e2e8f0; border-radius: 16px;
+    cursor: pointer; transition: all 0.2s; position: relative;
+  }
+  .q-option:hover:not(.disabled) { border-color: #cbd5e1; background-color: #f8fafc; }
+  .q-option.selected { border-color: #6366f1; background-color: #e0e7ff; }
+  .q-option.selected .q-option-letter { background-color: #6366f1; color: #ffffff; border-color: #6366f1; }
+  .q-option.correct { border-color: #10b981; background-color: #d1fae5; }
+  .q-option.correct .q-option-letter { background-color: #10b981; color: #ffffff; border-color: #10b981; }
+  .q-option.wrong { border-color: #ef4444; background-color: #fee2e2; }
+  .q-option.wrong .q-option-letter { background-color: #ef4444; color: #ffffff; border-color: #ef4444; }
+  .q-option.disabled { cursor: default; }
+
+  .q-option-letter {
+    width: 36px; height: 36px; border-radius: 10px; border: 1px solid #cbd5e1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: #64748b; margin-right: 16px;
+    transition: all 0.2s; flex-shrink: 0; background-color: #ffffff;
+  }
+  .q-option-text { font-size: 16px; font-weight: 600; color: #334155; flex: 1; line-height: 1.5; }
+  .q-option.correct .q-option-text { color: #065f46; }
+  .q-option.wrong .q-option-text { color: #991b1b; }
+  .q-option.selected .q-option-text { color: #3730a3; }
+  
+  .q-option-icon { font-size: 20px; font-weight: 800; }
+  .q-option.correct .q-option-icon { color: #10b981; }
+  .q-option.wrong .q-option-icon { color: #ef4444; }
+
+  .q-actions-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    background: #ffffff; padding: 20px 24px; border-radius: 16px;
+    border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  }
+  .q-score-live { font-size: 15px; color: #64748b; }
+  .q-score-live strong { color: #0f172a; font-size: 18px; margin-left: 4px; }
+  
+  .q-btn-primary {
+    padding: 14px 28px; border-radius: 12px; border: none;
+    color: #ffffff; font-size: 16px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; font-family: inherit;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  .q-btn-primary:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+  .q-btn-primary:disabled { opacity: 0.7; cursor: not-allowed; box-shadow: none; }
+
+  /* Results */
+  .q-result { width: 100%; max-width: 500px; margin: 0 auto; }
+  .q-result-card {
+    background-color: #ffffff; border: 1px solid #e2e8f0;
+    border-radius: 24px; padding: 48px 40px; text-align: center;
+    box-shadow: 0 20px 40px -12px rgba(0,0,0,0.1);
+  }
+  .q-result-icon { font-size: 72px; margin-bottom: 24px; animation: bounce 1s ease; }
+  @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  .q-result-title { font-size: 28px; font-weight: 800; color: #0f172a; margin-bottom: 12px; letter-spacing: -0.5px; }
+  .q-result-desc { font-size: 16px; color: #64748b; margin-bottom: 32px; line-height: 1.5; }
+  .q-result-desc strong { color: #0f172a; }
+  
+  .q-score-circle {
+    width: 160px; height: 160px; border-radius: 50%;
+    border: 8px solid; margin: 0 auto 24px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #ffffff; box-shadow: inset 0 4px 6px rgba(0,0,0,0.05);
+  }
+  .q-score-number { font-size: 56px; font-weight: 800; line-height: 1; letter-spacing: -2px; }
+  .q-score-total { font-size: 14px; font-weight: 600; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+  .q-result-pct { font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 40px; }
+  
+  .q-result-actions { display: flex; flex-direction: column; gap: 12px; }
+  .q-result-actions button { width: 100%; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+
+  @media (max-width: 768px) {
+    .q-nav { padding: 16px 20px; }
+    .q-main { padding: 32px 16px; }
+    .q-header h1 { font-size: 32px; }
+    .q-subject-card { padding: 24px; }
+    .q-question-card { padding: 24px; }
+    .q-question-text { font-size: 20px; }
+    .q-option { padding: 12px 16px; }
+    .q-actions-bar { flex-direction: column; gap: 16px; text-align: center; }
+    .q-actions-bar button { width: 100%; }
+    .q-result-card { padding: 32px 24px; }
+  }
+`;

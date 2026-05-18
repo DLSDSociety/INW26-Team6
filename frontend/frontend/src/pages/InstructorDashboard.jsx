@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 
 // ─── API CONFIG ───────────────────────────────────────────────────────────────
 const BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000/api";
@@ -23,21 +24,6 @@ async function apiFetch(path, opts = {}) {
 function Toast({ msg, type, onClose }) {
   useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, [onClose]);
   return <div className={`i-toast i-toast-${type}`}>{msg}</div>;
-}
-
-function ProgressRing({ pct }) {
-  const r = 18, c = 2 * Math.PI * r;
-  return (
-    <svg width="48" height="48" viewBox="0 0 48 48">
-      <circle cx="24" cy="24" r={r} fill="none" stroke="#2a3045" strokeWidth="4" />
-      <circle
-        cx="24" cy="24" r={r} fill="none" stroke="#6c63ff" strokeWidth="4"
-        strokeDasharray={c} strokeDashoffset={c - (c * pct) / 100}
-        strokeLinecap="round" transform="rotate(-90 24 24)"
-      />
-      <text x="24" y="28" textAnchor="middle" fill="#fff" fontSize="10" fontWeight="700">{pct}%</text>
-    </svg>
-  );
 }
 
 function Modal({ title, children, onClose }) {
@@ -65,10 +51,12 @@ function Field({ label, children }) {
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function InstructorDashboard() {
-  const [activeTab, setActiveTab] = useState("courses");
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("overview"); // "overview", "courses"
   const [courses, setCourses] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState(null);
   const [students, setStudents] = useState([]);
+  const [managingCourse, setManagingCourse] = useState(null); // The course object being managed
+  
   const [loading, setLoading] = useState({});
   const [toast, setToast] = useState(null);
 
@@ -78,7 +66,7 @@ export default function InstructorDashboard() {
   const [showAddLesson, setShowAddLesson] = useState(null);
   const [showStudents, setShowStudents] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [showAddMaterial, setShowAddMaterial] = useState(null); // course object
+  const [showAddMaterial, setShowAddMaterial] = useState(null); 
 
   // Forms
   const [courseForm, setCourseForm] = useState({ title: "", description: "", category: "", thumbnail: null });
@@ -95,6 +83,8 @@ export default function InstructorDashboard() {
     try {
       const data = await apiFetch("/courses/my-courses/");
       setCourses(data);
+      // Update managingCourse if it's currently open
+      setManagingCourse((prev) => prev ? data.find((c) => c.id === prev.id) || null : null);
     } catch { notify("Failed to load courses", "error"); }
     finally { setLoad("courses", false); }
   }, []);
@@ -117,11 +107,12 @@ export default function InstructorDashboard() {
     const fd = new FormData();
     Object.entries(courseForm).forEach(([k, v]) => { if (v) fd.append(k, v); });
     try {
-      const created = await apiFetch("/courses/", { method: "POST", body: fd, _form: true });
-      setCourses((p) => [created, ...p]);
+      await apiFetch("/courses/", { method: "POST", body: fd, _form: true });
       setShowCreateCourse(false);
       setCourseForm({ title: "", description: "", category: "", thumbnail: null });
-      notify("Course created!");
+      notify("Course created successfully!");
+      loadCourses();
+      setActiveTab("courses");
     } catch (e) { setFormError(e.message); }
   };
 
@@ -132,10 +123,10 @@ export default function InstructorDashboard() {
     const fd = new FormData();
     Object.entries(courseForm).forEach(([k, v]) => { if (v) fd.append(k, v); });
     try {
-      const updated = await apiFetch(`/courses/${showEditCourse.id}/`, { method: "PUT", body: fd, _form: true });
-      setCourses((p) => p.map((c) => (c.id === updated.id ? updated : c)));
+      await apiFetch(`/courses/${showEditCourse.id}/`, { method: "PUT", body: fd, _form: true });
       setShowEditCourse(null);
       notify("Course updated!");
+      loadCourses();
     } catch (e) { setFormError(e.message); }
   };
 
@@ -144,6 +135,7 @@ export default function InstructorDashboard() {
     try {
       await apiFetch(`/courses/${id}/`, { method: "DELETE" });
       setCourses((p) => p.filter((c) => c.id !== id));
+      if (managingCourse?.id === id) setManagingCourse(null);
       notify("Course deleted");
     } catch { notify("Failed to delete", "error"); }
     setConfirmDelete(null);
@@ -160,8 +152,8 @@ export default function InstructorDashboard() {
       await apiFetch("/courses/lessons/create/", { method: "POST", body: fd, _form: true });
       setShowAddLesson(null);
       setLessonForm({ title: "", order_number: "", duration: "", video_file: null });
-      notify("Lesson added!");
-      loadCourses(); // refresh lesson counts
+      notify("Lesson added successfully!");
+      loadCourses(); 
     } catch (e) { setFormError(e.message); }
   };
 
@@ -177,54 +169,51 @@ export default function InstructorDashboard() {
       await apiFetch(`/courses/lessons/${materialForm.lesson_id}/materials/`, { method: "POST", body: fd, _form: true });
       setShowAddMaterial(null);
       setMaterialForm({ lesson_id: "", file: null, material_type: "pdf" });
-      notify("Material uploaded!");
+      notify("Material uploaded successfully!");
+      loadCourses(); // Refresh materials
     } catch (e) { setFormError(e.message); }
   };
 
   // ── Derived stats ──
   const totalLessons = courses.reduce((s, c) => s + (c.lessons?.length || 0), 0);
+  const totalStudents = courses.reduce((s, c) => s + (c.student_count || 0), 0);
 
   return (
     <>
       <style>{CSS}</style>
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
-      {/* Confirm Delete */}
+      {/* ── MODALS ── */}
       {confirmDelete && (
         <div className="i-overlay">
           <div className="i-modal" style={{ maxWidth: 380 }}>
             <div className="i-modal-head"><h3>Confirm Delete</h3></div>
             <div className="i-modal-body">
               <p className="i-muted" style={{ marginBottom: 20 }}>
-                Delete <strong style={{ color: "#fff" }}>{confirmDelete.name}</strong>? This is permanent.
+                Delete <strong style={{ color: "#fff" }}>{confirmDelete.name}</strong>? This action cannot be undone.
               </p>
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
                 <button className="i-btn i-btn-ghost" onClick={() => setConfirmDelete(null)}>Cancel</button>
-                <button className="i-btn i-btn-danger" onClick={confirmDelete.onConfirm}>Delete</button>
+                <button className="i-btn i-btn-danger" onClick={confirmDelete.onConfirm}>Delete Course</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Create Course Modal */}
       {showCreateCourse && (
         <Modal title="Create New Course" onClose={() => { setShowCreateCourse(false); setFormError(""); }}>
-          <Field label="Title *">
-            <input className="i-input" value={courseForm.title}
-              onChange={(e) => setCourseForm((p) => ({ ...p, title: e.target.value }))} placeholder="Course title" />
-          </Field>
-          <Field label="Description">
-            <textarea className="i-input i-textarea" value={courseForm.description}
-              onChange={(e) => setCourseForm((p) => ({ ...p, description: e.target.value }))} placeholder="What will students learn?" />
+          <Field label="Course Title *">
+            <input className="i-input" value={courseForm.title} onChange={(e) => setCourseForm((p) => ({ ...p, title: e.target.value }))} placeholder="e.g. Master React in 30 Days" />
           </Field>
           <Field label="Category">
-            <input className="i-input" value={courseForm.category}
-              onChange={(e) => setCourseForm((p) => ({ ...p, category: e.target.value }))} placeholder="e.g. Web Development" />
+            <input className="i-input" value={courseForm.category} onChange={(e) => setCourseForm((p) => ({ ...p, category: e.target.value }))} placeholder="e.g. Web Development" />
           </Field>
-          <Field label="Thumbnail">
-            <input className="i-input" type="file" accept="image/*"
-              onChange={(e) => setCourseForm((p) => ({ ...p, thumbnail: e.target.files[0] }))} />
+          <Field label="Description">
+            <textarea className="i-input i-textarea" value={courseForm.description} onChange={(e) => setCourseForm((p) => ({ ...p, description: e.target.value }))} placeholder="What will students learn?" />
+          </Field>
+          <Field label="Cover Image">
+            <input className="i-input" type="file" accept="image/*" onChange={(e) => setCourseForm((p) => ({ ...p, thumbnail: e.target.files[0] }))} />
           </Field>
           {formError && <p className="i-form-error">{formError}</p>}
           <div className="i-modal-actions">
@@ -234,24 +223,19 @@ export default function InstructorDashboard() {
         </Modal>
       )}
 
-      {/* Edit Course Modal */}
       {showEditCourse && (
-        <Modal title="Edit Course" onClose={() => { setShowEditCourse(null); setFormError(""); }}>
-          <Field label="Title *">
-            <input className="i-input" value={courseForm.title}
-              onChange={(e) => setCourseForm((p) => ({ ...p, title: e.target.value }))} />
-          </Field>
-          <Field label="Description">
-            <textarea className="i-input i-textarea" value={courseForm.description}
-              onChange={(e) => setCourseForm((p) => ({ ...p, description: e.target.value }))} />
+        <Modal title="Edit Course Details" onClose={() => { setShowEditCourse(null); setFormError(""); }}>
+          <Field label="Course Title *">
+            <input className="i-input" value={courseForm.title} onChange={(e) => setCourseForm((p) => ({ ...p, title: e.target.value }))} />
           </Field>
           <Field label="Category">
-            <input className="i-input" value={courseForm.category}
-              onChange={(e) => setCourseForm((p) => ({ ...p, category: e.target.value }))} />
+            <input className="i-input" value={courseForm.category} onChange={(e) => setCourseForm((p) => ({ ...p, category: e.target.value }))} />
           </Field>
-          <Field label="New Thumbnail (optional)">
-            <input className="i-input" type="file" accept="image/*"
-              onChange={(e) => setCourseForm((p) => ({ ...p, thumbnail: e.target.files[0] }))} />
+          <Field label="Description">
+            <textarea className="i-input i-textarea" value={courseForm.description} onChange={(e) => setCourseForm((p) => ({ ...p, description: e.target.value }))} />
+          </Field>
+          <Field label="Update Cover Image (optional)">
+            <input className="i-input" type="file" accept="image/*" onChange={(e) => setCourseForm((p) => ({ ...p, thumbnail: e.target.files[0] }))} />
           </Field>
           {formError && <p className="i-form-error">{formError}</p>}
           <div className="i-modal-actions">
@@ -261,24 +245,21 @@ export default function InstructorDashboard() {
         </Modal>
       )}
 
-      {/* Add Lesson Modal */}
       {showAddLesson && (
-        <Modal title={`Add Lesson — ${showAddLesson.title}`} onClose={() => { setShowAddLesson(null); setFormError(""); }}>
+        <Modal title={`Add Lesson to ${showAddLesson.title}`} onClose={() => { setShowAddLesson(null); setFormError(""); }}>
           <Field label="Lesson Title *">
-            <input className="i-input" value={lessonForm.title}
-              onChange={(e) => setLessonForm((p) => ({ ...p, title: e.target.value }))} placeholder="e.g. Introduction to React" />
+            <input className="i-input" value={lessonForm.title} onChange={(e) => setLessonForm((p) => ({ ...p, title: e.target.value }))} placeholder="e.g. Introduction to Variables" />
           </Field>
-          <Field label="Order Number">
-            <input className="i-input" type="number" min="1" value={lessonForm.order_number}
-              onChange={(e) => setLessonForm((p) => ({ ...p, order_number: e.target.value }))} placeholder="1" />
-          </Field>
-          <Field label="Duration (mins)">
-            <input className="i-input" type="number" min="1" value={lessonForm.duration}
-              onChange={(e) => setLessonForm((p) => ({ ...p, duration: e.target.value }))} placeholder="15" />
-          </Field>
-          <Field label="Video File">
-            <input className="i-input" type="file" accept="video/*"
-              onChange={(e) => setLessonForm((p) => ({ ...p, video_file: e.target.files[0] }))} />
+          <div style={{ display: "flex", gap: "12px" }}>
+            <Field label="Order / Sequence">
+              <input className="i-input" type="number" min="1" value={lessonForm.order_number} onChange={(e) => setLessonForm((p) => ({ ...p, order_number: e.target.value }))} placeholder="1" />
+            </Field>
+            <Field label="Duration (mins)">
+              <input className="i-input" type="number" min="1" value={lessonForm.duration} onChange={(e) => setLessonForm((p) => ({ ...p, duration: e.target.value }))} placeholder="15" />
+            </Field>
+          </div>
+          <Field label="Lesson Video (optional)">
+            <input className="i-input" type="file" accept="video/*" onChange={(e) => setLessonForm((p) => ({ ...p, video_file: e.target.files[0] }))} />
           </Field>
           {formError && <p className="i-form-error">{formError}</p>}
           <div className="i-modal-actions">
@@ -288,19 +269,49 @@ export default function InstructorDashboard() {
         </Modal>
       )}
 
-      {/* Students Modal */}
+      {showAddMaterial && (
+        <Modal title={`Upload Material to ${showAddMaterial.title}`} onClose={() => { setShowAddMaterial(null); setFormError(""); }}>
+          <Field label="Select Lesson *">
+            <select className="i-input" value={materialForm.lesson_id} onChange={(e) => setMaterialForm((p) => ({ ...p, lesson_id: e.target.value }))}>
+              <option value="">— Select a lesson module —</option>
+              {(showAddMaterial.lessons || []).map((l) => (
+                <option key={l.id} value={l.id}>Module {l.order_number}: {l.title}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Material Type">
+            <select className="i-input" value={materialForm.material_type} onChange={(e) => setMaterialForm((p) => ({ ...p, material_type: e.target.value }))}>
+              <option value="pdf">PDF Document</option>
+              <option value="doc">Word Document</option>
+              <option value="video">Additional Video</option>
+              <option value="other">Other Asset</option>
+            </select>
+          </Field>
+          <Field label="Select File *">
+            <input className="i-input" type="file" onChange={(e) => setMaterialForm((p) => ({ ...p, file: e.target.files[0] }))} />
+          </Field>
+          {formError && <p className="i-form-error">{formError}</p>}
+          <div className="i-modal-actions">
+            <button className="i-btn i-btn-ghost" onClick={() => setShowAddMaterial(null)}>Cancel</button>
+            <button className="i-btn i-btn-primary" onClick={handleAddMaterial}>Upload Asset</button>
+          </div>
+        </Modal>
+      )}
+
       {showStudents && (
-        <Modal title={`Students — ${showStudents.title}`} onClose={() => setShowStudents(null)}>
+        <Modal title={`Enrolled Students — ${showStudents.title}`} onClose={() => setShowStudents(null)}>
           {loading.students ? (
-            <p className="i-muted" style={{ padding: "20px 0" }}>Loading…</p>
+            <div className="i-empty-state"><p>Loading student data...</p></div>
           ) : students.length === 0 ? (
-            <p className="i-muted" style={{ padding: "20px 0" }}>No students enrolled yet.</p>
+            <div className="i-empty-state">
+              <span style={{ fontSize: 40, marginBottom: 10, display: 'block' }}>👥</span>
+              <p>No students enrolled yet.</p>
+            </div>
           ) : (
             <table className="i-table">
               <thead>
                 <tr>
                   <th>Student</th>
-                  <th>Email</th>
                   <th>Progress</th>
                   <th>Status</th>
                 </tr>
@@ -308,19 +319,21 @@ export default function InstructorDashboard() {
               <tbody>
                 {students.map((s) => (
                   <tr key={s.id}>
-                    <td className="i-bold">{s.student_name || s.username}</td>
-                    <td className="i-muted">{s.email || "—"}</td>
+                    <td>
+                      <div className="i-bold">{s.student_name || s.username}</div>
+                      <div className="i-muted" style={{ fontSize: 11 }}>{s.email || "No email"}</div>
+                    </td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div className="i-prog-bar">
                           <div className="i-prog-fill" style={{ width: `${s.progress_percent || 0}%` }} />
                         </div>
-                        <span className="i-muted" style={{ fontSize: 12 }}>{s.progress_percent || 0}%</span>
+                        <span className="i-bold" style={{ fontSize: 12 }}>{s.progress_percent || 0}%</span>
                       </div>
                     </td>
                     <td>
                       <span className={`i-chip ${s.is_completed ? "done" : "progress"}`}>
-                        {s.is_completed ? "Done" : "Active"}
+                        {s.is_completed ? "Completed" : "In Progress"}
                       </span>
                     </td>
                   </tr>
@@ -331,224 +344,289 @@ export default function InstructorDashboard() {
         </Modal>
       )}
 
-      {/* Add Material Modal */}
-      {showAddMaterial && (
-        <Modal title={`Upload Material — ${showAddMaterial.title}`} onClose={() => { setShowAddMaterial(null); setFormError(""); }}>
-          <Field label="Select Lesson *">
-            <select className="i-input" value={materialForm.lesson_id}
-              onChange={(e) => setMaterialForm((p) => ({ ...p, lesson_id: e.target.value }))}>
-              <option value="">— Choose a lesson —</option>
-              {(showAddMaterial.lessons || []).map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.order_number}. {l.title}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Material Type">
-            <select className="i-input" value={materialForm.material_type}
-              onChange={(e) => setMaterialForm((p) => ({ ...p, material_type: e.target.value }))}>
-              <option value="pdf">PDF</option>
-              <option value="doc">Document</option>
-              <option value="video">Video</option>
-            </select>
-          </Field>
-          <Field label="File *">
-            <input className="i-input" type="file"
-              onChange={(e) => setMaterialForm((p) => ({ ...p, file: e.target.files[0] }))} />
-          </Field>
-          {formError && <p className="i-form-error">{formError}</p>}
-          <div className="i-modal-actions">
-            <button className="i-btn i-btn-ghost" onClick={() => setShowAddMaterial(null)}>Cancel</button>
-            <button className="i-btn i-btn-primary" onClick={handleAddMaterial}>Upload Material</button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Shell */}
+      {/* ── SHELL ── */}
       <div className="i-shell">
         {/* Sidebar */}
         <aside className="i-sidebar">
           <div className="i-brand">
-            <span className="i-brand-icon">🎓</span>
+            <div className="i-brand-icon">🎓</div>
             <div>
               <div className="i-brand-name">LearningHub</div>
-              <div className="i-brand-role">Instructor</div>
+              <div className="i-brand-role">Instructor Portal</div>
             </div>
           </div>
           <nav className="i-nav">
-            <button
-              className="i-nav-item"
-              onClick={() => window.location.href = "/"}
-            >
-              <span>🏠</span>
-              <span>Home</span>
+            <button className="i-nav-item" onClick={() => navigate("/")}>
+              <span className="i-nav-icon">🌐</span> Go to Website
             </button>
+            <div className="i-nav-divider"></div>
             {[
+              { id: "overview", icon: "📊", label: "Dashboard Overview" },
               { id: "courses", icon: "📚", label: "My Courses" },
-              { id: "overview", icon: "▦", label: "Overview" },
             ].map((item) => (
               <button
                 key={item.id}
-                className={`i-nav-item ${activeTab === item.id ? "active" : ""}`}
-                onClick={() => setActiveTab(item.id)}
+                className={`i-nav-item ${(activeTab === item.id && !managingCourse) ? "active" : ""}`}
+                onClick={() => { setActiveTab(item.id); setManagingCourse(null); }}
               >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
+                <span className="i-nav-icon">{item.icon}</span> {item.label}
               </button>
             ))}
           </nav>
+          
           <div className="i-sidebar-footer">
             <div className="i-user-info">
               <div className="i-avatar">{(localStorage.getItem("username") || "I")[0].toUpperCase()}</div>
               <div>
                 <div className="i-username">{localStorage.getItem("username") || "Instructor"}</div>
-                <div className="i-role-tag">instructor</div>
+                <div className="i-role-tag">Session Active</div>
               </div>
             </div>
-            <button className="i-btn i-btn-ghost i-btn-sm" style={{ width: "100%", marginTop: 10 }}
-              onClick={() => { localStorage.clear(); window.location.href = "/login"; }}>
-              ⎋ Sign out
+            <button className="i-btn i-btn-ghost i-btn-sm" style={{ width: "100%", marginTop: 16 }}
+              onClick={() => { localStorage.clear(); navigate("/login"); }}>
+              Sign Out 🚪
             </button>
           </div>
         </aside>
 
-        {/* Main */}
+        {/* Main Content */}
         <main className="i-main">
-          <header className="i-topbar">
-            <div>
-              <h1 className="i-page-title">
-                {activeTab === "overview" ? "Overview" : "My Courses"}
-              </h1>
-              <p className="i-page-sub">Manage your content and track student progress</p>
-            </div>
-            {activeTab === "courses" && (
-              <button className="i-btn i-btn-primary" onClick={() => {
-                setCourseForm({ title: "", description: "", category: "", thumbnail: null });
-                setFormError("");
-                setShowCreateCourse(true);
-              }}>
-                + Create Course
+          
+          {/* ── MANAGE COURSE VIEW ── */}
+          {managingCourse ? (
+            <div className="i-fade-in">
+              <button className="i-btn-back" onClick={() => setManagingCourse(null)}>
+                ← Back to Courses
               </button>
-            )}
-          </header>
-
-          {/* ── OVERVIEW TAB ── */}
-          {activeTab === "overview" && (
-            <section className="i-section">
-              <div className="i-stats-row">
-                {[
-                  { icon: "📚", label: "Courses", value: courses.length, color: "#6c63ff" },
-                  { icon: "🎬", label: "Total Lessons", value: totalLessons, color: "#f39c12" },
-                  { icon: "👥", label: "Total Students", value: courses.reduce((s, c) => s + (c.student_count || 0), 0), color: "#27ae60" },
-                ].map((s) => (
-                  <div key={s.label} className="i-stat-card" style={{ borderColor: s.color }}>
-                    <span style={{ fontSize: 26 }}>{s.icon}</span>
-                    <div>
-                      <div className="i-stat-val">{s.value}</div>
-                      <div className="i-stat-lbl">{s.label}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <h2 className="i-section-title">Course Breakdown</h2>
-              <div className="i-overview-grid">
-                {courses.map((c) => (
-                  <div key={c.id} className="i-overview-card">
-                    <div className="i-ov-head">
-                      <span className="i-ov-title">{c.title}</span>
-                      <span className="i-chip progress">{c.category || "General"}</span>
-                    </div>
-                    <div className="i-ov-meta">
-                      <span>{c.lessons?.length || 0} lessons</span>
-                      <span>{c.student_count || 0} students</span>
-                    </div>
-                  </div>
-                ))}
-                {courses.length === 0 && <p className="i-muted">No courses yet. Create your first one!</p>}
-              </div>
-            </section>
-          )}
-
-          {/* ── COURSES TAB ── */}
-          {activeTab === "courses" && (
-            <section className="i-section">
-              {loading.courses ? (
-                <p className="i-muted" style={{ padding: 20 }}>Loading courses…</p>
-              ) : courses.length === 0 ? (
-                <div className="i-empty-state">
-                  <div className="i-empty-icon">📚</div>
-                  <h3>No courses yet</h3>
-                  <p>Create your first course to get started</p>
-                  <button className="i-btn i-btn-primary" style={{ marginTop: 16 }}
-                    onClick={() => { setCourseForm({ title: "", description: "", category: "", thumbnail: null }); setShowCreateCourse(true); }}>
-                    + Create Course
+              
+              <header className="i-topbar" style={{ marginTop: 12 }}>
+                <div>
+                  <div className="i-chip progress" style={{ marginBottom: 8 }}>{managingCourse.category}</div>
+                  <h1 className="i-page-title">{managingCourse.title}</h1>
+                  <p className="i-page-sub">Manage curriculum, upload assets, and track students.</p>
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button className="i-btn i-btn-ghost" onClick={() => navigate(`/courses/${managingCourse.id}`)}>
+                    👁️ Preview Course
+                  </button>
+                  <button className="i-btn i-btn-primary" onClick={() => {
+                    setLessonForm({ title: "", order_number: managingCourse.lessons?.length + 1 || 1, duration: "", video_file: null });
+                    setFormError("");
+                    setShowAddLesson(managingCourse);
+                  }}>
+                    + Add New Lesson
                   </button>
                 </div>
-              ) : (
-                <div className="i-course-grid">
-                  {courses.map((c) => (
-                    <div key={c.id} className="i-course-card">
-                      {c.thumbnail && (
-                        <div className="i-course-thumb">
-                          <img src={c.thumbnail} alt={c.title} />
+              </header>
+
+              <div className="i-manage-grid">
+                {/* Left Column: Curriculum */}
+                <div className="i-manage-col">
+                  <h2 className="i-section-title">Course Curriculum</h2>
+                  <div className="i-curriculum-list">
+                    {managingCourse.lessons && managingCourse.lessons.length > 0 ? (
+                      managingCourse.lessons.sort((a, b) => a.order_number - b.order_number).map((l, idx) => (
+                        <div key={l.id} className="i-lesson-row">
+                          <div className="i-lesson-handle">::</div>
+                          <div className="i-lesson-info">
+                            <div className="i-lesson-title">Module {l.order_number}: {l.title}</div>
+                            <div className="i-lesson-meta">
+                              <span>⏱ {l.duration ? `${l.duration} mins` : "No duration"}</span>
+                              {l.video_file && <span>🎬 Video Attached</span>}
+                            </div>
+                          </div>
                         </div>
-                      )}
-                      {!c.thumbnail && (
-                        <div className="i-course-thumb-placeholder">
-                          <span>📚</span>
-                        </div>
-                      )}
-                      <div className="i-course-body">
-                        <div className="i-course-cat">{c.category || "General"}</div>
-                        <h3 className="i-course-title">{c.title}</h3>
-                        <p className="i-course-desc">{c.description || "No description provided."}</p>
-                        <div className="i-course-meta">
-                          <span>🎬 {c.lessons?.length || 0} lessons</span>
-                          <span>👥 {c.student_count ?? "—"} students</span>
-                        </div>
+                      ))
+                    ) : (
+                      <div className="i-empty-state" style={{ padding: "40px 20px" }}>
+                        <div style={{ fontSize: 30, marginBottom: 10 }}>📖</div>
+                        <h4 style={{ color: "var(--i-text)", marginBottom: 4 }}>Curriculum is empty</h4>
+                        <p style={{ fontSize: 13 }}>Start building your course by adding the first lesson.</p>
                       </div>
-                      <div className="i-course-actions">
-                        <button className="i-btn i-btn-ghost i-btn-sm" onClick={() => {
-                          setShowStudents(c);
-                          loadStudents(c.id);
-                        }}>
-                          👥 Students
-                        </button>
-                        <button className="i-btn i-btn-accent i-btn-sm" onClick={() => {
-                          setLessonForm({ title: "", order_number: "", duration: "", video_file: null });
-                          setFormError("");
-                          setShowAddLesson(c);
-                        }}>
-                          + Lesson
-                        </button>
-                        <button className="i-btn i-btn-accent i-btn-sm" onClick={() => {
-                          setMaterialForm({ lesson_id: "", file: null, material_type: "pdf" });
-                          setFormError("");
-                          setShowAddMaterial(c);
-                        }}>
-                          📎 Material
-                        </button>
-                        <button className="i-btn i-btn-ghost i-btn-sm" onClick={() => {
-                          setCourseForm({ title: c.title, description: c.description || "", category: c.category || "", thumbnail: null });
-                          setFormError("");
-                          setShowEditCourse(c);
-                        }}>
-                          ✏️ Edit
-                        </button>
-                        <button className="i-btn i-btn-danger i-btn-sm" onClick={() => setConfirmDelete({
-                          name: c.title,
-                          onConfirm: () => handleDeleteCourse(c.id),
-                        })}>
-                          🗑 Delete
-                        </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column: Actions & Stats */}
+                <div className="i-manage-col">
+                  <h2 className="i-section-title">Quick Actions</h2>
+                  <div className="i-action-card">
+                    <button className="i-action-btn" onClick={() => {
+                      setMaterialForm({ lesson_id: "", file: null, material_type: "pdf" });
+                      setFormError("");
+                      setShowAddMaterial(managingCourse);
+                    }}>
+                      <span className="i-action-icon">📎</span>
+                      <div className="i-action-text">
+                        <strong>Upload Material</strong>
+                        <span>Attach PDFs or Docs to lessons</span>
+                      </div>
+                    </button>
+                    <button className="i-action-btn" onClick={() => {
+                      setShowStudents(managingCourse);
+                      loadStudents(managingCourse.id);
+                    }}>
+                      <span className="i-action-icon">👥</span>
+                      <div className="i-action-text">
+                        <strong>View Students</strong>
+                        <span>Track enrollment and progress</span>
+                      </div>
+                    </button>
+                    <button className="i-action-btn" onClick={() => {
+                      setCourseForm({ title: managingCourse.title, description: managingCourse.description || "", category: managingCourse.category || "", thumbnail: null });
+                      setFormError("");
+                      setShowEditCourse(managingCourse);
+                    }}>
+                      <span className="i-action-icon">✏️</span>
+                      <div className="i-action-text">
+                        <strong>Edit Details</strong>
+                        <span>Update title, description, or cover</span>
+                      </div>
+                    </button>
+                    <div style={{ padding: "16px", borderTop: "1px solid var(--i-border)", marginTop: 8 }}>
+                      <button className="i-btn i-btn-danger" style={{ width: "100%", justifyContent: "center" }} onClick={() => setConfirmDelete({
+                        name: managingCourse.title,
+                        onConfirm: () => handleDeleteCourse(managingCourse.id),
+                      })}>
+                        Delete Course
+                      </button>
+                    </div>
+                  </div>
+
+                  <h2 className="i-section-title" style={{ marginTop: 24 }}>At a Glance</h2>
+                  <div className="i-glance-grid">
+                    <div className="i-glance-stat">
+                      <div className="i-glance-val">{managingCourse.lessons?.length || 0}</div>
+                      <div className="i-glance-lbl">Lessons</div>
+                    </div>
+                    <div className="i-glance-stat">
+                      <div className="i-glance-val">{managingCourse.student_count || 0}</div>
+                      <div className="i-glance-lbl">Students</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : activeTab === "overview" ? (
+            /* ── OVERVIEW TAB ── */
+            <div className="i-fade-in">
+              <header className="i-topbar">
+                <div>
+                  <h1 className="i-page-title">Welcome back, Instructor!</h1>
+                  <p className="i-page-sub">Here is what's happening with your courses today.</p>
+                </div>
+                <button className="i-btn i-btn-primary" onClick={() => {
+                  setCourseForm({ title: "", description: "", category: "", thumbnail: null });
+                  setFormError("");
+                  setShowCreateCourse(true);
+                }}>
+                  + Create New Course
+                </button>
+              </header>
+
+              <section className="i-section">
+                <div className="i-stats-row">
+                  {[
+                    { icon: "🚀", label: "Active Courses", value: courses.length, color: "var(--i-accent)", bg: "rgba(99,102,241,0.1)" },
+                    { icon: "👥", label: "Total Students", value: totalStudents, color: "#10b981", bg: "rgba(16,185,129,0.1)" },
+                    { icon: "📚", label: "Total Lessons", value: totalLessons, color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
+                  ].map((s) => (
+                    <div key={s.label} className="i-stat-card">
+                      <div className="i-stat-icon-wrap" style={{ color: s.color, background: s.bg }}>{s.icon}</div>
+                      <div>
+                        <div className="i-stat-val">{s.value}</div>
+                        <div className="i-stat-lbl">{s.label}</div>
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
-            </section>
+
+                <div className="i-dashboard-split">
+                  <div className="i-split-col">
+                    <h2 className="i-section-title">Top Performing Courses</h2>
+                    <div className="i-perf-list">
+                      {courses.length > 0 ? courses.sort((a,b) => (b.student_count || 0) - (a.student_count || 0)).slice(0, 4).map(c => (
+                        <div key={c.id} className="i-perf-item" onClick={() => { setActiveTab("courses"); setManagingCourse(c); }}>
+                          <div className="i-perf-thumb">{c.thumbnail ? <img src={c.thumbnail} alt="" /> : "📚"}</div>
+                          <div className="i-perf-info">
+                            <div className="i-perf-title">{c.title}</div>
+                            <div className="i-perf-meta">{c.student_count || 0} enrolled</div>
+                          </div>
+                          <div className="i-perf-arrow">→</div>
+                        </div>
+                      )) : (
+                        <div className="i-empty-state" style={{ padding: 20 }}>No courses available to track.</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="i-split-col">
+                    <div className="i-getting-started">
+                      <h3>🚀 Instructor Tips</h3>
+                      <ul>
+                        <li>Keep lessons under 15 minutes for maximum retention.</li>
+                        <li>Upload PDF materials to complement your video lectures.</li>
+                        <li>Engage with your students to boost completion rates.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          ) : (
+            /* ── COURSES TAB ── */
+            <div className="i-fade-in">
+              <header className="i-topbar">
+                <div>
+                  <h1 className="i-page-title">My Courses</h1>
+                  <p className="i-page-sub">Manage and organize your published content.</p>
+                </div>
+                <button className="i-btn i-btn-primary" onClick={() => {
+                  setCourseForm({ title: "", description: "", category: "", thumbnail: null });
+                  setFormError("");
+                  setShowCreateCourse(true);
+                }}>
+                  + Create New Course
+                </button>
+              </header>
+
+              <section className="i-section">
+                {loading.courses ? (
+                  <div className="i-loader"></div>
+                ) : courses.length === 0 ? (
+                  <div className="i-empty-state" style={{ padding: "80px 20px" }}>
+                    <div className="i-empty-icon" style={{ fontSize: 60, marginBottom: 16 }}>📦</div>
+                    <h3 style={{ fontSize: 20, color: "#fff", marginBottom: 8 }}>Your workspace is empty</h3>
+                    <p style={{ fontSize: 14, marginBottom: 20 }}>Start sharing your knowledge by creating your first course.</p>
+                    <button className="i-btn i-btn-primary" onClick={() => setShowCreateCourse(true)}>
+                      + Create Course
+                    </button>
+                  </div>
+                ) : (
+                  <div className="i-course-grid">
+                    {courses.map((c) => (
+                      <div key={c.id} className="i-course-card">
+                        <div className="i-course-thumb">
+                          {c.thumbnail ? <img src={c.thumbnail} alt={c.title} /> : <div className="i-course-thumb-placeholder">📚</div>}
+                          <div className="i-course-cat-badge">{c.category || "General"}</div>
+                        </div>
+                        <div className="i-course-body">
+                          <h3 className="i-course-title" title={c.title}>{c.title}</h3>
+                          <div className="i-course-meta">
+                            <span><span style={{ color: "var(--i-accent)" }}>🎬</span> {c.lessons?.length || 0} modules</span>
+                            <span><span style={{ color: "#10b981" }}>👥</span> {c.student_count || 0} students</span>
+                          </div>
+                        </div>
+                        <div className="i-course-footer">
+                          <button className="i-btn i-btn-accent" style={{ width: "100%", justifyContent: "center" }} onClick={() => setManagingCourse(c)}>
+                            Manage Course
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
           )}
         </main>
       </div>
@@ -558,219 +636,232 @@ export default function InstructorDashboard() {
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --i-bg: #0b0e16;
-    --i-surface: #141720;
-    --i-surface2: #1c2030;
-    --i-border: #252c40;
-    --i-text: #e4e8f0;
-    --i-muted: #667080;
-    --i-accent: #6c63ff;
-    --i-green: #2ecc71;
-    --i-orange: #f39c12;
-    --i-danger: #e74c3c;
+    --i-bg: #09090b;
+    --i-surface: #121217;
+    --i-surface2: #1c1c24;
+    --i-border: #272730;
+    --i-border-hover: #3f3f4e;
+    --i-text: #ededf0;
+    --i-muted: #8a8a98;
+    --i-accent: #6366f1;
+    --i-accent-hover: #4f46e5;
+    --i-danger: #ef4444;
     --i-radius: 12px;
-    --i-sidebar: 230px;
-    --i-font-h: 'Syne', sans-serif;
-    --i-font-b: 'DM Sans', sans-serif;
+    --i-sidebar: 260px;
+    --i-font-h: 'Outfit', sans-serif;
+    --i-font-b: 'Inter', sans-serif;
+    
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
   }
 
-  body { background: var(--i-bg); color: var(--i-text); font-family: var(--i-font-b); }
+  body { background: var(--i-bg); color: var(--i-text); font-family: var(--i-font-b); -webkit-font-smoothing: antialiased; }
+
+  .i-fade-in { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
   .i-shell { display: flex; min-height: 100vh; }
 
-  /* Sidebar */
+  /* ── Sidebar ── */
   .i-sidebar {
     width: var(--i-sidebar); background: var(--i-surface);
     border-right: 1px solid var(--i-border);
     display: flex; flex-direction: column;
-    position: sticky; top: 0; height: 100vh; padding: 20px 14px;
+    position: sticky; top: 0; height: 100vh; padding: 24px 20px;
   }
   .i-brand {
-    display: flex; align-items: center; gap: 10px;
-    padding-bottom: 20px; border-bottom: 1px solid var(--i-border);
-    margin-bottom: 18px;
+    display: flex; align-items: center; gap: 12px;
+    padding-bottom: 24px;
   }
-  .i-brand-icon { font-size: 26px; }
-  .i-brand-name { font-family: var(--i-font-h); font-weight: 800; font-size: 16px; color: #fff; }
-  .i-brand-role { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--i-orange); font-weight: 600; }
-  .i-nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .i-brand-icon { 
+    font-size: 24px; background: linear-gradient(135deg, var(--i-accent), #8b5cf6);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .i-brand-name { font-family: var(--i-font-h); font-weight: 800; font-size: 20px; color: #fff; letter-spacing: -0.5px; }
+  .i-brand-role { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--i-muted); font-weight: 600; margin-top: 2px; }
+  
+  .i-nav { display: flex; flex-direction: column; gap: 6px; flex: 1; margin-top: 10px; }
   .i-nav-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px; border-radius: 8px; border: none;
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border-radius: 8px; border: none;
     background: transparent; color: var(--i-muted);
-    cursor: pointer; font-family: var(--i-font-b); font-size: 14px;
-    text-align: left; transition: all 0.15s;
+    cursor: pointer; font-family: var(--i-font-b); font-size: 14px; font-weight: 500;
+    text-align: left; transition: all 0.2s;
   }
+  .i-nav-icon { font-size: 16px; opacity: 0.8; transition: opacity 0.2s; }
   .i-nav-item:hover { background: var(--i-surface2); color: var(--i-text); }
-  .i-nav-item.active { background: rgba(108,99,255,0.15); color: var(--i-accent); font-weight: 600; border-left: 3px solid var(--i-accent); }
-  .i-sidebar-footer { border-top: 1px solid var(--i-border); padding-top: 14px; }
-  .i-user-info { display: flex; align-items: center; gap: 10px; }
+  .i-nav-item:hover .i-nav-icon { opacity: 1; }
+  .i-nav-item.active { background: rgba(99,102,241,0.1); color: var(--i-accent); font-weight: 600; }
+  .i-nav-item.active .i-nav-icon { opacity: 1; }
+  .i-nav-divider { height: 1px; background: var(--i-border); margin: 10px 0; }
+
+  .i-sidebar-footer { border-top: 1px solid var(--i-border); padding-top: 20px; }
+  .i-user-info { display: flex; align-items: center; gap: 12px; background: var(--i-surface2); padding: 12px; border-radius: 10px; }
   .i-avatar {
-    width: 34px; height: 34px; border-radius: 50%;
+    width: 36px; height: 36px; border-radius: 8px;
     background: linear-gradient(135deg, var(--i-accent), #a855f7);
     display: flex; align-items: center; justify-content: center;
-    font-weight: 700; color: #fff; font-size: 14px; flex-shrink: 0;
+    font-weight: 700; color: #fff; font-size: 15px; font-family: var(--i-font-h);
   }
   .i-username { font-size: 13px; font-weight: 600; color: var(--i-text); }
-  .i-role-tag { font-size: 10px; color: var(--i-orange); text-transform: uppercase; letter-spacing: 1px; }
+  .i-role-tag { font-size: 10px; color: #10b981; font-weight: 500; margin-top: 2px; }
 
-  /* Main */
-  .i-main { flex: 1; padding: 28px 32px; overflow-y: auto; }
-  .i-topbar {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 24px; gap: 12px; flex-wrap: wrap;
-  }
-  .i-page-title { font-family: var(--i-font-h); font-size: 24px; font-weight: 800; color: #fff; }
-  .i-page-sub { color: var(--i-muted); font-size: 13px; margin-top: 3px; }
-  .i-section { animation: i-fadeUp 0.2s ease; }
-  @keyframes i-fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-  .i-section-title { font-family: var(--i-font-h); font-size: 17px; font-weight: 700; margin: 24px 0 14px; }
+  /* ── Main Area ── */
+  .i-main { flex: 1; padding: 40px 48px; overflow-y: auto; background: radial-gradient(circle at top right, rgba(99,102,241,0.03), transparent 400px); }
+  .i-topbar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; gap: 16px; flex-wrap: wrap; }
+  .i-page-title { font-family: var(--i-font-h); font-size: 32px; font-weight: 800; color: #fff; letter-spacing: -0.5px; margin-bottom: 6px; }
+  .i-page-sub { color: var(--i-muted); font-size: 15px; }
+  
+  .i-btn-back { background: transparent; border: none; color: var(--i-muted); font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 0; transition: color 0.2s; }
+  .i-btn-back:hover { color: var(--i-text); }
 
-  /* Overview stats */
-  .i-stats-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+  /* ── Overview Dashboard ── */
+  .i-stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 32px; }
   .i-stat-card {
     background: var(--i-surface); border: 1px solid var(--i-border);
-    border-top: 3px solid;
-    border-radius: var(--i-radius); padding: 18px 22px;
-    display: flex; align-items: center; gap: 14px; flex: 1; min-width: 160px;
-    transition: transform 0.15s;
+    border-radius: 16px; padding: 24px;
+    display: flex; align-items: center; gap: 20px;
+    box-shadow: var(--shadow-md); transition: transform 0.2s, border-color 0.2s;
   }
-  .i-stat-card:hover { transform: translateY(-2px); }
-  .i-stat-val { font-family: var(--i-font-h); font-size: 26px; font-weight: 800; color: #fff; }
-  .i-stat-lbl { font-size: 12px; color: var(--i-muted); margin-top: 2px; }
-
-  /* Overview grid */
-  .i-overview-grid { display: flex; flex-direction: column; gap: 10px; }
-  .i-overview-card {
-    background: var(--i-surface); border: 1px solid var(--i-border);
-    border-radius: var(--i-radius); padding: 14px 18px;
+  .i-stat-card:hover { transform: translateY(-2px); border-color: var(--i-border-hover); }
+  .i-stat-icon-wrap {
+    width: 56px; height: 56px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center; font-size: 28px;
   }
-  .i-ov-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  .i-ov-title { font-size: 14px; font-weight: 600; color: var(--i-text); }
-  .i-ov-meta { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; color: var(--i-muted); }
+  .i-stat-val { font-family: var(--i-font-h); font-size: 32px; font-weight: 800; color: #fff; line-height: 1.1; }
+  .i-stat-lbl { font-size: 13px; color: var(--i-muted); font-weight: 500; margin-top: 4px; }
 
-  /* Course grid */
-  .i-course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
+  .i-dashboard-split { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+  .i-split-col { display: flex; flex-direction: column; gap: 24px; }
+  .i-section-title { font-family: var(--i-font-h); font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 16px; }
+
+  /* Perf List */
+  .i-perf-list { background: var(--i-surface); border: 1px solid var(--i-border); border-radius: 16px; overflow: hidden; }
+  .i-perf-item { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--i-border); cursor: pointer; transition: background 0.2s; }
+  .i-perf-item:hover { background: var(--i-surface2); }
+  .i-perf-item:last-child { border-bottom: none; }
+  .i-perf-thumb { width: 48px; height: 48px; border-radius: 8px; background: var(--i-surface2); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .i-perf-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .i-perf-info { flex: 1; }
+  .i-perf-title { font-weight: 600; font-size: 14px; color: var(--i-text); margin-bottom: 4px; }
+  .i-perf-meta { font-size: 12px; color: #10b981; font-weight: 500; }
+  .i-perf-arrow { color: var(--i-muted); font-size: 18px; transition: transform 0.2s; }
+  .i-perf-item:hover .i-perf-arrow { transform: translateX(4px); color: var(--i-text); }
+
+  /* Getting Started */
+  .i-getting-started { background: linear-gradient(145deg, #1e1b4b, var(--i-surface)); border: 1px solid rgba(99,102,241,0.2); border-radius: 16px; padding: 24px; }
+  .i-getting-started h3 { font-family: var(--i-font-h); color: #fff; font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .i-getting-started ul { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .i-getting-started li { font-size: 13px; color: #cbd5e1; line-height: 1.5; padding-left: 20px; position: relative; }
+  .i-getting-started li::before { content: "✦"; position: absolute; left: 0; color: var(--i-accent); }
+
+  /* ── Course Grid ── */
+  .i-course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; }
   .i-course-card {
     background: var(--i-surface); border: 1px solid var(--i-border);
-    border-radius: var(--i-radius); overflow: hidden;
-    display: flex; flex-direction: column;
-    transition: transform 0.15s, box-shadow 0.15s;
+    border-radius: 16px; overflow: hidden; display: flex; flex-direction: column;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
   }
-  .i-course-card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
-  .i-course-thumb { height: 140px; overflow: hidden; }
+  .i-course-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--i-border-hover); }
+  .i-course-thumb { height: 160px; overflow: hidden; position: relative; background: var(--i-surface2); display: flex; align-items: center; justify-content: center; }
   .i-course-thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .i-course-thumb-placeholder {
-    height: 140px; background: var(--i-surface2);
-    display: flex; align-items: center; justify-content: center; font-size: 40px;
-  }
-  .i-course-body { padding: 16px; flex: 1; }
-  .i-course-cat { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--i-accent); font-weight: 700; margin-bottom: 6px; }
-  .i-course-title { font-family: var(--i-font-h); font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 8px; }
-  .i-course-desc { font-size: 13px; color: var(--i-muted); line-height: 1.6; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .i-course-meta { display: flex; gap: 14px; font-size: 12px; color: var(--i-muted); }
-  .i-course-actions {
-    padding: 12px 16px; border-top: 1px solid var(--i-border);
-    display: flex; gap: 8px; flex-wrap: wrap;
-  }
+  .i-course-thumb-placeholder { font-size: 48px; }
+  .i-course-cat-badge { position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); color: #fff; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; letter-spacing: 1px; }
+  .i-course-body { padding: 20px; flex: 1; }
+  .i-course-title { font-family: var(--i-font-h); font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 12px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .i-course-meta { display: flex; gap: 16px; font-size: 13px; color: var(--i-muted); font-weight: 500; }
+  .i-course-footer { padding: 16px 20px; border-top: 1px solid var(--i-border); background: rgba(255,255,255,0.01); }
 
-  /* Chips */
-  .i-chip {
-    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.5px;
-  }
-  .i-chip.done { background: rgba(46,204,113,0.15); color: var(--i-green); }
-  .i-chip.progress { background: rgba(108,99,255,0.15); color: var(--i-accent); }
+  /* ── Manage Course View ── */
+  .i-manage-grid { display: grid; grid-template-columns: 1fr 340px; gap: 32px; margin-top: 24px; }
+  
+  .i-curriculum-list { background: var(--i-surface); border: 1px solid var(--i-border); border-radius: 12px; overflow: hidden; }
+  .i-lesson-row { display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--i-border); background: var(--i-surface); transition: background 0.2s; }
+  .i-lesson-row:hover { background: var(--i-surface2); }
+  .i-lesson-row:last-child { border-bottom: none; }
+  .i-lesson-handle { color: var(--i-muted); cursor: grab; padding-right: 16px; font-size: 20px; opacity: 0.5; }
+  .i-lesson-info { flex: 1; }
+  .i-lesson-title { font-size: 15px; font-weight: 600; color: var(--i-text); margin-bottom: 4px; }
+  .i-lesson-meta { display: flex; gap: 12px; font-size: 12px; color: var(--i-muted); }
 
-  /* Buttons */
+  .i-action-card { background: var(--i-surface); border: 1px solid var(--i-border); border-radius: 12px; overflow: hidden; }
+  .i-action-btn { display: flex; align-items: center; gap: 16px; width: 100%; text-align: left; background: transparent; border: none; border-bottom: 1px solid var(--i-border); padding: 16px; cursor: pointer; transition: background 0.2s; }
+  .i-action-btn:hover { background: var(--i-surface2); }
+  .i-action-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .i-action-text strong { display: block; font-size: 14px; font-weight: 600; color: var(--i-text); margin-bottom: 2px; }
+  .i-action-text span { font-size: 12px; color: var(--i-muted); }
+
+  .i-glance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .i-glance-stat { background: var(--i-surface); border: 1px solid var(--i-border); border-radius: 12px; padding: 16px; text-align: center; }
+  .i-glance-val { font-family: var(--i-font-h); font-size: 28px; font-weight: 800; color: var(--i-accent); }
+  .i-glance-lbl { font-size: 12px; color: var(--i-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-top: 4px; }
+
+  /* ── Shared UI Elements ── */
+  .i-chip { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .i-chip.done { background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
+  .i-chip.progress { background: rgba(99,102,241,0.1); color: var(--i-accent); border: 1px solid rgba(99,102,241,0.2); }
+
   .i-btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 9px 18px; border-radius: 8px; border: none;
-    font-family: var(--i-font-b); font-size: 14px; font-weight: 500;
-    cursor: pointer; transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-radius: 8px; border: 1px solid transparent;
+    font-family: var(--i-font-b); font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s ease;
   }
-  .i-btn-sm { padding: 5px 11px; font-size: 12px; }
-  .i-btn-primary { background: var(--i-accent); color: #fff; }
-  .i-btn-primary:hover { background: #5a52e0; }
-  .i-btn-accent { background: rgba(108,99,255,0.15); color: var(--i-accent); border: 1px solid rgba(108,99,255,0.3); }
-  .i-btn-accent:hover { background: var(--i-accent); color: #fff; }
-  .i-btn-ghost { background: transparent; border: 1px solid var(--i-border); color: var(--i-muted); }
-  .i-btn-ghost:hover { border-color: var(--i-text); color: var(--i-text); }
-  .i-btn-danger { background: var(--i-danger); color: #fff; }
-  .i-btn-danger:hover { background: #c0392b; }
+  .i-btn-sm { padding: 6px 14px; font-size: 13px; }
+  .i-btn-primary { background: var(--i-accent); color: #fff; box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
+  .i-btn-primary:hover { background: var(--i-accent-hover); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(99,102,241,0.4); }
+  .i-btn-accent { background: rgba(99,102,241,0.1); color: var(--i-accent); border-color: rgba(99,102,241,0.2); }
+  .i-btn-accent:hover { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.3); }
+  .i-btn-ghost { background: transparent; border-color: var(--i-border); color: var(--i-text); }
+  .i-btn-ghost:hover { background: var(--i-surface2); border-color: var(--i-border-hover); }
+  .i-btn-danger { background: rgba(239,68,68,0.1); color: var(--i-danger); border-color: rgba(239,68,68,0.2); }
+  .i-btn-danger:hover { background: rgba(239,68,68,0.2); }
 
-  /* Form */
-  .i-field { margin-bottom: 14px; }
-  .i-label { display: block; font-size: 12px; font-weight: 600; color: var(--i-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  /* Form Elements */
+  .i-field { margin-bottom: 20px; }
+  .i-label { display: block; font-size: 12px; font-weight: 600; color: var(--i-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
   .i-input {
-    width: 100%; background: var(--i-surface2); border: 1px solid var(--i-border);
-    color: var(--i-text); border-radius: 8px; padding: 10px 14px;
+    width: 100%; background: var(--i-bg); border: 1px solid var(--i-border);
+    color: var(--i-text); border-radius: 8px; padding: 12px 16px;
     font-family: var(--i-font-b); font-size: 14px; outline: none;
-    transition: border 0.15s;
+    transition: all 0.2s; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
   }
-  .i-input:focus { border-color: var(--i-accent); }
-  .i-textarea { resize: vertical; min-height: 90px; }
-  .i-form-error { color: var(--i-danger); font-size: 13px; margin: 8px 0; }
-  .i-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+  .i-input:focus { border-color: var(--i-accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+  .i-textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
+  .i-form-error { color: var(--i-danger); font-size: 13px; margin: 10px 0; font-weight: 500; }
+  .i-modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--i-border); }
 
-  /* Modal */
-  .i-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
-    display: flex; align-items: center; justify-content: center; z-index: 999;
-  }
-  .i-modal {
-    background: var(--i-surface); border: 1px solid var(--i-border);
-    border-radius: 16px; width: 90%; max-width: 520px; max-height: 90vh;
-    overflow-y: auto;
-  }
-  .i-modal-head {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 20px 24px; border-bottom: 1px solid var(--i-border);
-  }
-  .i-modal-head h3 { font-family: var(--i-font-h); font-size: 18px; font-weight: 700; }
-  .i-close-btn { background: none; border: none; color: var(--i-muted); font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
-  .i-close-btn:hover { background: var(--i-surface2); color: var(--i-text); }
-  .i-modal-body { padding: 20px 24px; }
+  /* Modals */
+  .i-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 999; animation: fadeIn 0.2s; }
+  .i-modal { background: var(--i-surface); border: 1px solid var(--i-border); border-radius: 20px; width: 90%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+  .i-modal-head { display: flex; justify-content: space-between; align-items: center; padding: 24px 32px; border-bottom: 1px solid var(--i-border); }
+  .i-modal-head h3 { font-family: var(--i-font-h); font-size: 20px; font-weight: 700; color: #fff; }
+  .i-close-btn { background: var(--i-surface2); border: none; color: var(--i-muted); font-size: 16px; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .i-close-btn:hover { background: var(--i-border); color: #fff; transform: rotate(90deg); }
+  .i-modal-body { padding: 32px; }
 
   /* Table */
-  .i-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .i-table th {
-    padding: 10px 12px; text-align: left;
-    font-family: var(--i-font-h); font-size: 11px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.8px; color: var(--i-muted);
-    border-bottom: 1px solid var(--i-border);
-  }
-  .i-table td { padding: 10px 12px; border-bottom: 1px solid var(--i-border); vertical-align: middle; }
+  .i-table { width: 100%; border-collapse: collapse; }
+  .i-table th { padding: 12px 16px; text-align: left; font-family: var(--i-font-h); font-size: 12px; font-weight: 600; color: var(--i-muted); border-bottom: 1px solid var(--i-border); background: var(--i-bg); }
+  .i-table td { padding: 16px; border-bottom: 1px solid var(--i-border); vertical-align: middle; }
   .i-table tr:last-child td { border-bottom: none; }
-  .i-bold { font-weight: 500; color: var(--i-text); }
-  .i-muted { color: var(--i-muted); }
+  .i-bold { font-weight: 600; color: var(--i-text); }
+  .i-prog-bar { flex: 1; background: var(--i-bg); border-radius: 10px; height: 6px; overflow: hidden; min-width: 80px; border: 1px solid var(--i-border); }
+  .i-prog-fill { height: 100%; background: linear-gradient(90deg, var(--i-accent), #a855f7); border-radius: 10px; }
 
-  /* Progress */
-  .i-prog-bar { flex: 1; background: var(--i-border); border-radius: 4px; height: 5px; overflow: hidden; min-width: 70px; }
-  .i-prog-fill { height: 100%; background: var(--i-accent); border-radius: 4px; }
-
-  /* Empty */
-  .i-empty-state {
-    text-align: center; padding: 60px 20px;
-    color: var(--i-muted);
-  }
-  .i-empty-icon { font-size: 48px; margin-bottom: 12px; }
-  .i-empty-state h3 { font-family: var(--i-font-h); color: var(--i-text); margin-bottom: 6px; font-size: 18px; }
-  .i-empty-state p { font-size: 14px; }
-
-  /* Toast */
-  .i-toast {
-    position: fixed; bottom: 24px; right: 24px; z-index: 1000;
-    padding: 12px 20px; border-radius: 10px;
-    font-size: 14px; font-weight: 500; font-family: var(--i-font-b);
-    animation: i-slideIn 0.2s ease;
-  }
-  .i-toast-success { background: #27ae60; color: #fff; }
+  /* Toasts */
+  .i-toast { position: fixed; bottom: 32px; right: 32px; z-index: 1000; padding: 14px 24px; border-radius: 12px; font-size: 14px; font-weight: 600; animation: i-slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: var(--shadow-lg); }
+  .i-toast-success { background: #10b981; color: #fff; }
   .i-toast-error { background: var(--i-danger); color: #fff; }
-  @keyframes i-slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes i-slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  .i-empty-state { text-align: center; color: var(--i-muted); }
+  .i-loader { border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--i-accent); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 100px auto; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 `;
